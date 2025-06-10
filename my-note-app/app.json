@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "my-note-app",
+    "slug": "my-note-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "https://img.shields.io/badge/App-Icon-blue.png?style=flat",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "https://img.shields.io/badge/Splash-Image-green.png?style=flat",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "https://img.shields.io/badge/Icon-512x512-orange.png?style=flat",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "https://img.shields.io/badge/Web-Favicon-yellow.png?style=flat"
+    }
+  }
+}
