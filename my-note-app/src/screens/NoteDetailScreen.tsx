@@ -106,9 +106,18 @@ export const NoteDetailScreen: React.FC = () => {
         
         <Text style={styles.time}>{formatDate(note.createdAt)}</Text>
         
-        {note.imageUri && (
+        {note.imageUris && note.imageUris.length > 0 && (
           <View style={styles.imageContainer}>
-            <Image source={{ uri: note.imageUri }} style={styles.image} contentFit="cover" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {note.imageUris.map((uri, index) => (
+                <Image 
+                  key={index} 
+                  source={{ uri }} 
+                  style={[styles.image, index > 0 && styles.imageMargin]} 
+                  contentFit="cover" 
+                />
+              ))}
+            </ScrollView>
           </View>
         )}
         
@@ -163,9 +172,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   image: {
-    width: '100%',
-    height: 240,
+    width: 200,
+    height: 200,
     borderRadius: 12,
+  },
+  imageMargin: {
+    marginLeft: 12,
   },
   noteContent: { 
     fontSize: 16,

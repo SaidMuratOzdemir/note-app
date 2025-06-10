@@ -1,3 +1,4 @@
+import 'react-native-get-random-values'; // Must be first import for UUID support
 import { registerRootComponent } from 'expo';
 import 'react-native-gesture-handler';
 

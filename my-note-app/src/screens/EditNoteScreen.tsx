@@ -16,7 +16,7 @@ export const EditNoteScreen: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
-  const [imageUri, setImageUri] = useState<string | undefined>();
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [originalNote, setOriginalNote] = useState<Note | null>(null);
   
   const navigation = useNavigation<EditNoteScreenNavigationProp>();
@@ -30,7 +30,7 @@ export const EditNoteScreen: React.FC = () => {
       setTitle(note.title || '');
       setContent(note.content);
       setTags(note.tags?.join(' ') || ''); // Join with spaces instead of #
-      setImageUri(note.imageUri);
+      setImageUris(note.imageUris || []);
     }
   };
 
@@ -53,12 +53,12 @@ export const EditNoteScreen: React.FC = () => {
       title: title.trim() || undefined,
       content: content.trim(),
       tags: parsedTags.length > 0 ? parsedTags : undefined,
-      imageUri,
+      imageUris: imageUris.length > 0 ? imageUris : undefined,
     };
 
     await updateNote(updatedNote);
     navigation.goBack();
-  }, [title, content, tags, imageUri, originalNote, navigation]);
+  }, [title, content, tags, imageUris, originalNote, navigation]);
 
   const setupHeaderButtons = () => {
     navigation.setOptions({
@@ -87,23 +87,29 @@ export const EditNoteScreen: React.FC = () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: false,
       quality: 0.8,
+      allowsMultipleSelection: true,
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const newUris = result.assets.map(asset => asset.uri);
+      setImageUris(prev => [...prev, ...newUris]);
     }
   };
 
-  const removeImage = () => {
+  const removeImage = (indexToRemove: number) => {
     Alert.alert(
       'Fotoğrafı Kaldır',
       'Bu fotoğrafı kaldırmak istediğinize emin misiniz?',
       [
         { text: 'İptal', style: 'cancel' },
-        { text: 'Kaldır', style: 'destructive', onPress: () => setImageUri(undefined) },
+        { 
+          text: 'Kaldır', 
+          style: 'destructive', 
+          onPress: () => setImageUris(prev => prev.filter((_, index) => index !== indexToRemove))
+        },
       ]
     );
   };
@@ -139,18 +145,27 @@ export const EditNoteScreen: React.FC = () => {
         />
 
         <View style={styles.imageSection}>
-          {imageUri ? (
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" />
-              <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
-                <Text style={styles.removeImageText}>×</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-              <Text style={styles.addImageText}>📷 Fotoğraf Ekle</Text>
-            </TouchableOpacity>
+          {imageUris.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
+              {imageUris.map((uri, index) => (
+                <View key={index} style={styles.imageContainer}>
+                  <Image source={{ uri }} style={styles.image} contentFit="cover" />
+                  <TouchableOpacity 
+                    style={styles.removeImageButton} 
+                    onPress={() => removeImage(index)}
+                  >
+                    <Text style={styles.removeImageText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
           )}
+          
+          <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+            <Text style={styles.addImageText}>
+              📷 {imageUris.length > 0 ? 'Fotoğraf Ekle' : 'Fotoğraf Ekle'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -198,13 +213,18 @@ const styles = StyleSheet.create({
   imageSection: {
     marginTop: 8,
   },
-  imageContainer: {
-    position: 'relative',
+  imagesScrollView: {
     marginBottom: 16,
   },
+  imageContainer: {
+    position: 'relative',
+    marginRight: 12,
+    width: 120,
+    height: 120,
+  },
   image: {
-    width: '100%',
-    height: 200,
+    width: 120,
+    height: 120,
     borderRadius: 12,
   },
   removeImageButton: {

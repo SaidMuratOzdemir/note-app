@@ -4,5 +4,5 @@ export interface Note {
   content: string;
   createdAt: string; // ISO 8601
   tags?: string[];
-  imageUri?: string;
+  imageUris?: string[]; // Multiple images support
 }

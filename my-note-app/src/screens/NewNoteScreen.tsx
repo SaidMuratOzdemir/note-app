@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, TextInput, StyleSheet, ScrollView, Alert, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,13 +11,16 @@ import { colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type NewNoteScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewNote'>;
+type NewNoteScreenRouteProp = RouteProp<RootStackParamList, 'NewNote'>;
 
 export const NewNoteScreen: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
-  const [imageUri, setImageUri] = useState<string | undefined>();
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const navigation = useNavigation<NewNoteScreenNavigationProp>();
+  const route = useRoute<NewNoteScreenRouteProp>();
+  const selectedDate = route.params?.selectedDate;
 
   const save = useCallback(async () => {
     if (!content.trim()) {
@@ -31,18 +34,28 @@ export const NewNoteScreen: React.FC = () => {
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0 && tag !== '#');
 
+    // Use selected date or current date
+    const noteDate = selectedDate 
+      ? new Date(selectedDate + 'T' + new Date().toISOString().split('T')[1])
+      : new Date();
+
     const note: Note = {
       id: uuid(),
       title: title.trim() || undefined,
       content: content.trim(),
-      createdAt: new Date().toISOString(),
+      createdAt: noteDate.toISOString(),
       tags: parsedTags.length > 0 ? parsedTags : undefined,
-      imageUri,
+      imageUris: imageUris.length > 0 ? imageUris : undefined,
     };
     
-    await addNote(note);
-    navigation.goBack();
-  }, [title, content, tags, imageUri, navigation]);
+    try {
+      await addNote(note);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error saving note:', error);
+      Alert.alert('Hata', 'Not kaydedilirken bir hata oluştu');
+    }
+  }, [title, content, tags, imageUris, selectedDate, navigation]);
 
   useEffect(() => {
     setupHeaderButtons();
@@ -77,23 +90,29 @@ export const NewNoteScreen: React.FC = () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: false,
       quality: 0.8,
+      allowsMultipleSelection: true,
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const newUris = result.assets.map(asset => asset.uri);
+      setImageUris(prev => [...prev, ...newUris]);
     }
   };
 
-  const removeImage = () => {
+  const removeImage = (indexToRemove: number) => {
     Alert.alert(
       'Fotoğrafı Kaldır',
       'Bu fotoğrafı kaldırmak istediğinize emin misiniz?',
       [
         { text: 'İptal', style: 'cancel' },
-        { text: 'Kaldır', style: 'destructive', onPress: () => setImageUri(undefined) },
+        { 
+          text: 'Kaldır', 
+          style: 'destructive', 
+          onPress: () => setImageUris(prev => prev.filter((_, index) => index !== indexToRemove))
+        },
       ]
     );
   };
@@ -130,18 +149,27 @@ export const NewNoteScreen: React.FC = () => {
         />
 
         <View style={styles.imageSection}>
-          {imageUri ? (
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" />
-              <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
-                <Text style={styles.removeImageText}>×</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-              <Text style={styles.addImageText}>📷 Fotoğraf Ekle</Text>
-            </TouchableOpacity>
+          {imageUris.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
+              {imageUris.map((uri, index) => (
+                <View key={index} style={styles.imageContainer}>
+                  <Image source={{ uri }} style={styles.image} contentFit="cover" />
+                  <TouchableOpacity 
+                    style={styles.removeImageButton} 
+                    onPress={() => removeImage(index)}
+                  >
+                    <Text style={styles.removeImageText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
           )}
+          
+          <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+            <Text style={styles.addImageText}>
+              📷 {imageUris.length > 0 ? 'Fotoğraf Ekle' : 'Fotoğraf Ekle'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -189,13 +217,18 @@ const styles = StyleSheet.create({
   imageSection: {
     marginTop: 8,
   },
-  imageContainer: {
-    position: 'relative',
+  imagesScrollView: {
     marginBottom: 16,
   },
+  imageContainer: {
+    position: 'relative',
+    marginRight: 12,
+    width: 120,
+    height: 120,
+  },
   image: {
-    width: '100%',
-    height: 200,
+    width: 120,
+    height: 120,
     borderRadius: 12,
   },
   removeImageButton: {

@@ -13,9 +13,14 @@ export async function saveNotes(notes: Note[]): Promise<void> {
 }
 
 export async function addNote(note: Note): Promise<void> {
-  const notes = await getNotes();
-  notes.push(note);
-  await saveNotes(notes);
+  try {
+    const notes = await getNotes();
+    notes.push(note);
+    await saveNotes(notes);
+  } catch (error) {
+    console.error('Error in addNote:', error);
+    throw error;
+  }
 }
 
 export async function updateNote(note: Note): Promise<void> {

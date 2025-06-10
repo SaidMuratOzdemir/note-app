@@ -1,71 +1,70 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
 import { colors } from '../theme/colors';
-import { typography } from '../theme/typography';
 import { RootStackParamList } from '../navigation/RootStack';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type DateNotesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'DateNotes'>;
+type DateNotesScreenRouteProp = RouteProp<RootStackParamList, 'DateNotes'>;
 
-export const HomeScreen: React.FC = () => {
+export const DateNotesScreen: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
-  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const navigation = useNavigation<DateNotesScreenNavigationProp>();
+  const route = useRoute<DateNotesScreenRouteProp>();
+  const selectedDate = route.params.date;
 
   useEffect(() => {
-    setupHeaderButtons();
-    const load = navigation.addListener('focus', async () => {
-      const all = await getNotes();
-      const today = new Date().toISOString().split('T')[0];
-      const todaysNotes = all
-        .filter(n => n.createdAt.startsWith(today))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setNotes(todaysNotes);
-    });
+    setupHeader();
+    const load = navigation.addListener('focus', loadNotes);
+    loadNotes();
     return load;
-  }, [navigation]);
+  }, [navigation, selectedDate]);
 
-  const setupHeaderButtons = () => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={() => navigation.navigate('Calendar')} style={styles.headerButton}>
-            <Text style={styles.calendarIcon}>📅</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Search')} style={styles.headerButton}>
-            <Text style={styles.searchIcon}>🔍</Text>
-          </TouchableOpacity>
-        </View>
-      ),
-    });
+  const setupHeader = () => {
+    const date = new Date(selectedDate);
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    
+    let title = '';
+    if (selectedDate === today) {
+      title = 'Bugün';
+    } else if (selectedDate === yesterday) {
+      title = 'Dün';
+    } else {
+      title = date.toLocaleDateString('tr-TR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+    }
+    
+    navigation.setOptions({ title });
   };
 
-  const formatDate = () => {
-    const today = new Date();
-    return today.toLocaleDateString('tr-TR', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+  const loadNotes = async () => {
+    const all = await getNotes();
+    const dateNotes = all
+      .filter(n => n.createdAt.startsWith(selectedDate))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setNotes(dateNotes);
   };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyStateIcon}>📝</Text>
-      <Text style={styles.emptyStateTitle}>Henüz bugün bir not yazmadınız</Text>
-      <Text style={styles.emptyStateSubtitle}>Bugünün anılarını kaydetmek için + butonuna dokunun</Text>
+      <Text style={styles.emptyStateTitle}>Bu tarihte henüz not yok</Text>
+      <Text style={styles.emptyStateSubtitle}>Yeni bir not eklemek için + butonuna dokunun</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.date}>{formatDate()}</Text>
         {notes.length > 0 && (
           <Text style={styles.noteCount}>
             {notes.length} not
@@ -90,7 +89,7 @@ export const HomeScreen: React.FC = () => {
         ListEmptyComponent={renderEmptyState}
       />
       
-      <FAB onPress={() => navigation.navigate('NewNote')} />
+      <FAB onPress={() => navigation.navigate('NewNote', { selectedDate })} />
     </View>
   );
 };
@@ -102,15 +101,10 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: 'white',
-  },
-  date: { 
-    ...typography.title,
-    fontSize: 24, 
-    marginBottom: 4,
   },
   noteCount: {
     fontSize: 14,
@@ -143,19 +137,5 @@ const styles = StyleSheet.create({
     color: colors.placeholder,
     textAlign: 'center',
     lineHeight: 20,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    marginRight: 16,
-  },
-  headerButton: {
-    marginLeft: 16,
-    padding: 4,
-  },
-  calendarIcon: {
-    fontSize: 20,
-  },
-  searchIcon: {
-    fontSize: 20,
   },
 });

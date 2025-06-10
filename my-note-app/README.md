@@ -6,17 +6,20 @@ Modern ve sade tasarımlı React Native günlük uygulaması. Expo ile geliştir
 
 ### ✅ Temel Özellikler
 - **Ana Sayfa (HomeScreen)**: Bugünün tarihi ve günlük notların listesi
-- **Yeni Not Ekleme**: Başlık, içerik, etiket ve fotoğraf ekleme
+- **Yeni Not Ekleme**: Başlık, içerik, etiket ve **çoklu fotoğraf** ekleme
 - **Not Detayı**: Tam içerik görüntüleme, düzenleme ve silme
 - **Not Düzenleme**: Mevcut notları güncelleme
 - **Arama**: Tüm notlarda metin ve etiket arama
+- **📅 Takvim Görünümü**: Tarihlere göre not görüntüleme ve ekleme
+- **📆 Tarih Bazlı Notlar**: Seçilen tarihe ait notları görme ve yeni not ekleme
 
 ### 📱 Kullanıcı Deneyimi
 - **Pastel Renkli Kartlar**: Her not farklı renkte görünür
-- **Fotoğraf Desteği**: Notlara resim ekleme ve görüntüleme
+- **Çoklu Fotoğraf Desteği**: Notlara birden fazla resim ekleme ve yatay kaydırma
 - **Etiket Sistemi**: `#etiket` formatında etiketleme
 - **Türkçe Tarih Formatı**: Bugün, dün formatında tarih gösterimi
 - **Modern Arayüz**: Yuvarlatılmış köşeler, gölgeler ve animasyonlar
+- **Takvim Navigasyonu**: Geçmiş ve gelecek tarihlere erişim
 
 ### 🔧 Teknik Özellikler
 - **AsyncStorage**: Yerel veri saklama
@@ -38,7 +41,9 @@ src/
 │   ├── NewNoteScreen.tsx      # Yeni not ekleme
 │   ├── EditNoteScreen.tsx     # Not düzenleme
 │   ├── NoteDetailScreen.tsx   # Not detayı
-│   └── SearchScreen.tsx       # Arama ekranı
+│   ├── SearchScreen.tsx       # Arama ekranı
+│   ├── CalendarScreen.tsx     # Takvim görünümü
+│   └── DateNotesScreen.tsx    # Tarih bazlı notlar
 ├── services/           # Veri servisleri
 │   └── storage.ts      # AsyncStorage yardımcıları
 ├── types/              # TypeScript tipleri
@@ -83,7 +88,7 @@ interface Note {
   content: string;         // Ana metin içeriği
   createdAt: string;       // ISO 8601 tarih formatı
   tags?: string[];         // Etiket listesi
-  imageUri?: string;       // Fotoğraf URI'si
+  imageUris?: string[];    // Çoklu fotoğraf URI'leri
 }
 ```
 
@@ -102,8 +107,15 @@ interface Note {
 2. Başlık ekleyin (isteğe bağlı)
 3. Not içeriğinizi yazın
 4. Etiketler ekleyin (örn: #iş #önemli)
-5. İsterseniz fotoğraf ekleyin
+5. İsterseniz **birden fazla fotoğraf** ekleyin
 6. Sağ üstteki "Kaydet" butonuna dokunun
+
+### Takvim Kullanımı
+1. Ana sayfada sağ üstteki 📅 butonuna dokunun
+2. Takvimde istediğiniz tarihe dokunun
+3. O tarihteki notları görün veya yeni not ekleyin
+4. Not bulunan günler yeşil renkte gösterilir
+5. Bugün mavi renkte vurgulanır
 
 ### Not Arama
 1. Ana sayfada sağ üstteki 🔍 butonuna dokunun
@@ -118,11 +130,11 @@ interface Note {
 
 ## 🔮 Gelecek Özellikler
 
-- **📅 Takvim Görünümü**: Geçmiş günlere erişim
 - **🔔 Hatırlatıcılar**: Push notification desteği
 - **🌙 Gece Modu**: Karanlık tema
 - **📤 Dışa Aktarma**: PDF/Text export
 - **☁️ Bulut Senkronizasyonu**: Çoklu cihaz desteği
+- **🎨 Tema Seçenekleri**: Farklı renk paletleri
 
 ## 🛠️ Geliştirme
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Note } from '../types/Note';
 import { TagPill } from './TagPill';
@@ -31,13 +31,27 @@ export const NoteCard: React.FC<Props> = ({ note, onPress }) => {
       
       <Text style={styles.time}>{formatTime(note.createdAt)}</Text>
       
-      {note.imageUri && (
+      {note.imageUris && note.imageUris.length > 0 && (
         <View style={styles.imageContainer}>
-          <Image source={{ uri: note.imageUri }} style={styles.image} contentFit="cover" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {note.imageUris.slice(0, 3).map((uri, index) => (
+              <Image 
+                key={index} 
+                source={{ uri }} 
+                style={[styles.image, index > 0 && styles.imageMargin]} 
+                contentFit="cover" 
+              />
+            ))}
+            {note.imageUris.length > 3 && (
+              <View style={[styles.image, styles.moreImagesIndicator, styles.imageMargin]}>
+                <Text style={styles.moreImagesText}>+{note.imageUris.length - 3}</Text>
+              </View>
+            )}
+          </ScrollView>
         </View>
       )}
       
-      <Text numberOfLines={note.imageUri ? 2 : 3} style={styles.content}>
+      <Text numberOfLines={note.imageUris && note.imageUris.length > 0 ? 2 : 3} style={styles.content}>
         {note.content}
       </Text>
       
@@ -84,9 +98,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   image: {
-    width: '100%',
-    height: 120,
+    width: 80,
+    height: 80,
     borderRadius: 8,
+  },
+  imageMargin: {
+    marginLeft: 8,
+  },
+  moreImagesIndicator: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreImagesText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   content: { 
     fontSize: 14,
