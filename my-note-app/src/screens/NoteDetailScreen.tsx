@@ -1,46 +1,203 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Image } from 'expo-image';
 import { Note } from '../types/Note';
 import { getNotes, deleteNote } from '../services/storage';
 import { TagPill } from '../components/TagPill';
+import { colors } from '../theme/colors';
+import { RootStackParamList } from '../navigation/RootStack';
 
-interface Params { id: string; }
+type NoteDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
+type NoteDetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 
 export const NoteDetailScreen: React.FC = () => {
   const [note, setNote] = useState<Note | null>(null);
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
+  const navigation = useNavigation<NoteDetailScreenNavigationProp>();
+  const route = useRoute<NoteDetailScreenRouteProp>();
 
   useEffect(() => {
-    (async () => {
-      const all = await getNotes();
-      setNote(all.find(n => n.id === route.params.id) || null);
-    })();
-  }, [route.params.id]);
+    loadNote();
+    setupHeaderButtons();
+  }, []);
 
-  const remove = async () => {
+  const loadNote = async () => {
+    const all = await getNotes();
+    const foundNote = all.find(n => n.id === route.params.id);
+    setNote(foundNote || null);
+  };
+
+  const setupHeaderButtons = () => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('EditNote', { id: route.params.id })} 
+            style={styles.headerButton}
+          >
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={confirmDelete} style={styles.headerButton}>
+            <Text style={styles.deleteIcon}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Notu Sil',
+      'Bu notu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
+      [
+        { text: 'İptal', style: 'cancel' },
+        { text: 'Sil', style: 'destructive', onPress: handleDelete },
+      ]
+    );
+  };
+
+  const handleDelete = async () => {
     await deleteNote(route.params.id);
     navigation.goBack();
   };
 
-  if (!note) return null;
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const noteDate = dateString.split('T')[0];
+    
+    let datePrefix = '';
+    if (noteDate === today) {
+      datePrefix = 'Bugün, ';
+    } else if (noteDate === yesterday) {
+      datePrefix = 'Dün, ';
+    } else {
+      datePrefix = date.toLocaleDateString('tr-TR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      }) + ', ';
+    }
+    
+    const time = date.toLocaleTimeString('tr-TR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    return datePrefix + time;
+  };
+
+  if (!note) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Not bulunamadı</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      {note.title ? <Text style={styles.title}>{note.title}</Text> : null}
-      <Text style={styles.time}>{new Date(note.createdAt).toLocaleString()}</Text>
-      <Text style={styles.content}>{note.content}</Text>
-      <View style={styles.tags}>{note.tags?.map(tag => <TagPill key={tag} label={tag} />)}</View>
-      <Button title="Sil" onPress={remove} />
-    </View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        {note.title && (
+          <Text style={styles.title}>{note.title}</Text>
+        )}
+        
+        <Text style={styles.time}>{formatDate(note.createdAt)}</Text>
+        
+        {note.imageUri && (
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: note.imageUri }} style={styles.image} contentFit="cover" />
+          </View>
+        )}
+        
+        <Text style={styles.noteContent}>{note.content}</Text>
+        
+        {note.tags && note.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagsLabel}>Etiketler:</Text>
+            <View style={styles.tags}>
+              {note.tags.map(tag => (
+                <TagPill key={tag} label={`#${tag}`} />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { fontSize: 24, fontWeight: 'bold' },
-  time: { fontSize: 12, color: '#666', marginVertical: 4 },
-  content: { marginVertical: 8 },
-  tags: { flexDirection: 'row', marginVertical: 4 },
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.background 
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.placeholder,
+  },
+  content: {
+    padding: 16,
+  },
+  title: { 
+    fontSize: 28, 
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+    lineHeight: 34,
+  },
+  time: { 
+    fontSize: 14, 
+    color: colors.placeholder, 
+    marginBottom: 20,
+  },
+  imageContainer: {
+    marginBottom: 20,
+  },
+  image: {
+    width: '100%',
+    height: 240,
+    borderRadius: 12,
+  },
+  noteContent: { 
+    fontSize: 16,
+    color: colors.text,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  tagsContainer: {
+    marginTop: 8,
+  },
+  tagsLabel: {
+    fontSize: 14,
+    color: colors.placeholder,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  tags: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    marginRight: 16,
+  },
+  headerButton: {
+    marginLeft: 16,
+    padding: 4,
+  },
+  editIcon: {
+    fontSize: 20,
+  },
+  deleteIcon: {
+    fontSize: 20,
+  },
 });

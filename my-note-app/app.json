@@ -13,17 +13,32 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Bu uygulama notlarınıza fotoğraf eklemek için galeri erişimi gerektirir."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "https://img.shields.io/badge/Icon-512x512-orange.png?style=flat",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "https://img.shields.io/badge/Web-Favicon-yellow.png?style=flat"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Bu uygulama notlarınıza fotoğraf eklemek için galeri erişimi gerektirir."
+        }
+      ]
+    ]
   }
 }

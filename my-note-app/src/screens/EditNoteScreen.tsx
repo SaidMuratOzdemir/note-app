@@ -1,23 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, TextInput, StyleSheet, ScrollView, Alert, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { addNote } from '../services/storage';
 import { Note } from '../types/Note';
-import { v4 as uuid } from 'uuid';
+import { getNotes, updateNote } from '../services/storage';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
-type NewNoteScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewNote'>;
+type EditNoteScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditNote'>;
+type EditNoteScreenRouteProp = RouteProp<RootStackParamList, 'EditNote'>;
 
-export const NewNoteScreen: React.FC = () => {
+export const EditNoteScreen: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [imageUri, setImageUri] = useState<string | undefined>();
-  const navigation = useNavigation<NewNoteScreenNavigationProp>();
+  const [originalNote, setOriginalNote] = useState<Note | null>(null);
+  
+  const navigation = useNavigation<EditNoteScreenNavigationProp>();
+  const route = useRoute<EditNoteScreenRouteProp>();
+
+  const loadNote = async () => {
+    const notes = await getNotes();
+    const note = notes.find(n => n.id === route.params.id);
+    if (note) {
+      setOriginalNote(note);
+      setTitle(note.title || '');
+      setContent(note.content);
+      setTags(note.tags?.join(' ') || ''); // Join with spaces instead of #
+      setImageUri(note.imageUri);
+    }
+  };
 
   const save = useCallback(async () => {
     if (!content.trim()) {
@@ -25,48 +40,43 @@ export const NewNoteScreen: React.FC = () => {
       return;
     }
 
+    if (!originalNote) return;
+
     // Better tag parsing - handle both #tag and tag formats
     const parsedTags = tags
       .split(/[\s,#]+/) // Split by spaces, commas, or hashtags
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0 && tag !== '#');
 
-    const note: Note = {
-      id: uuid(),
+    const updatedNote: Note = {
+      ...originalNote,
       title: title.trim() || undefined,
       content: content.trim(),
-      createdAt: new Date().toISOString(),
       tags: parsedTags.length > 0 ? parsedTags : undefined,
       imageUri,
     };
-    
-    await addNote(note);
-    navigation.goBack();
-  }, [title, content, tags, imageUri, navigation]);
 
-  useEffect(() => {
-    setupHeaderButtons();
-  }, [save, content]);
+    await updateNote(updatedNote);
+    navigation.goBack();
+  }, [title, content, tags, imageUri, originalNote, navigation]);
 
   const setupHeaderButtons = () => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity 
-          onPress={save} 
-          style={[styles.headerButton, !content.trim() && styles.headerButtonDisabled]}
-          disabled={!content.trim()}
-        >
-          <Text style={[styles.headerButtonText, !content.trim() && styles.headerButtonTextDisabled]}>
-            Kaydet
-          </Text>
+        <TouchableOpacity onPress={save} style={styles.headerButton}>
+          <Text style={styles.headerButtonText}>Kaydet</Text>
         </TouchableOpacity>
       ),
     });
   };
 
-  const handleSave = () => {
-    save();
-  };
+  useEffect(() => {
+    loadNote();
+  }, []);
+
+  useEffect(() => {
+    setupHeaderButtons();
+  }, [save, content]);
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -118,7 +128,6 @@ export const NewNoteScreen: React.FC = () => {
           onChangeText={setContent}
           multiline
           textAlignVertical="top"
-          autoFocus
         />
 
         <TextInput
@@ -233,11 +242,5 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
-  },
-  headerButtonDisabled: {
-    opacity: 0.5,
-  },
-  headerButtonTextDisabled: {
-    color: colors.placeholder,
   },
 });

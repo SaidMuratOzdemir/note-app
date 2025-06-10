@@ -1,0 +1,159 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Note } from '../types/Note';
+import { getNotes } from '../services/storage';
+import { NoteCard } from '../components/NoteCard';
+import { colors } from '../theme/colors';
+import { RootStackParamList } from '../navigation/RootStack';
+
+type SearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
+
+export const SearchScreen: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
+  const navigation = useNavigation<SearchScreenNavigationProp>();
+
+  useEffect(() => {
+    loadNotes();
+  }, []);
+
+  useEffect(() => {
+    filterNotes();
+  }, [searchQuery, allNotes]);
+
+  const loadNotes = async () => {
+    const notes = await getNotes();
+    setAllNotes(notes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  };
+
+  const filterNotes = () => {
+    if (!searchQuery.trim()) {
+      setFilteredNotes(allNotes);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = allNotes.filter(note => 
+      note.title?.toLowerCase().includes(query) ||
+      note.content.toLowerCase().includes(query) ||
+      note.tags?.some(tag => tag.toLowerCase().includes(query))
+    );
+    setFilteredNotes(filtered);
+  };
+
+  const groupNotesByDate = (notes: Note[]) => {
+    const grouped = notes.reduce((acc, note) => {
+      const date = note.createdAt.split('T')[0];
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(note);
+      return acc;
+    }, {} as Record<string, Note[]>);
+    
+    return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    
+    if (dateString === today) return 'Bugün';
+    if (dateString === yesterday) return 'Dün';
+    
+    return date.toLocaleDateString('tr-TR', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
+  const renderSection = ({ item }: { item: [string, Note[]] }) => {
+    const [date, notes] = item;
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{formatDate(date)}</Text>
+        {notes.map(note => (
+          <NoteCard 
+            key={note.id} 
+            note={note} 
+            onPress={() => navigation.navigate('Detail', { id: note.id })} 
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const groupedNotes = groupNotesByDate(filteredNotes);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Notlarda ara..."
+          placeholderTextColor={colors.placeholder}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoFocus
+        />
+      </View>
+      
+      {searchQuery.trim() && (
+        <Text style={styles.resultText}>
+          {filteredNotes.length} sonuç bulundu
+        </Text>
+      )}
+      
+      <FlatList
+        data={groupedNotes}
+        renderItem={renderSection}
+        keyExtractor={([date]) => date}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  searchContainer: {
+    padding: 16,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchInput: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  resultText: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    color: colors.placeholder,
+    fontSize: 14,
+  },
+  listContainer: {
+    padding: 16,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+});
