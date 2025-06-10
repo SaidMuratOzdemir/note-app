@@ -1,0 +1,91 @@
+Sıfırdan bir “günlük tarzı not tutma uygulaması” geliştir.
+Platform: Expo Go (React Native)
+Uygulama, kullanıcının gün içinde birden fazla metin parçası (not) girmesine olanak tanıyan, parçalı bir günlük deneyimi sunmalı. Tasarım modern, sade ve estetik olmalı.
+
+## Temel Özellikler
+
+### 1. HomeScreen (Ana Sayfa)
+- Üstte bugünün tarihi büyük ve estetik biçimde gösterilir (örn. “10 Haziran 2025, Salı”).
+- Altında, bugünkü tüm notlar kart listesi şeklinde kronolojik sırayla görünür.
+- Her kart:
+  - Başlık (isteğe bağlı, kalın)
+  - Saat bilgisi (küçük, soluk gri)
+  - İçeriğin ilk birkaç satırı
+  - Etiketler varsa gösterilir (tag badge)
+- Kartlar pastel renkte, yumuşak gölgeli ve köşeleri yuvarlatılmış.
+- Sağ alt köşede yuvarlak bir `+` FAB (Floating Action Button) yeni not eklemek için.
+- Sağ üstte (ileride aktif olacak) arama simgesi.
+
+### 2. NewNoteScreen (Yeni Not Ekleme)
+- Başlık alanı (isteğe bağlı, tek satır)
+- Ana içerik metni (çok satırlı, odaklı yazım alanı)
+- Etiket ekleme alanı (`#etiket` girişi desteklenebilir)
+- Fotoğraf ekleme seçeneği (isteğe bağlı)
+- Not kaydedildiğinde otomatik zaman damgası (`createdAt`) eklenir.
+- Kaydet butonu sayfa altında ya da üst barda.
+
+### 3. NoteDetailScreen (Not Detayı)
+- Notun tam içeriği, tarih, saat ve etiketleri gösterilir.
+- Varsa fotoğraf da görüntülenir.
+- Üst sağda "Düzenle" ve "Sil" ikonları.
+
+## Veri Modeli
+interface Note {
+  id: string;              // uuid
+  title?: string;
+  content: string;
+  createdAt: string;       // ISO 8601 format (örn. "2025-06-10T14:22:00Z")
+  tags?: string[];
+  imageUri?: string;
+}
+
+## Depolama
+- İlk aşamada AsyncStorage kullanılmalı.
+- Veriler düz liste olarak saklanmalı (`notes[]`) → filtreleme ile günlere erişim sağlanmalı.
+- `createdAt` bilgisi üzerinden gün ayıklanarak bugünün notları seçilir:
+  const today = new Date().toISOString().split("T")[0];
+  const todaysNotes = notes.filter(n => n.createdAt.startsWith(today));
+
+## Dosya & Klasör Yapısı
+/src
+  /components      → NoteCard, TagPill, FAB
+  /screens         → HomeScreen.tsx, NewNoteScreen.tsx, NoteDetailScreen.tsx, SearchScreen.tsx
+  /services        → storage.ts (AsyncStorage wrapper)
+  /types           → Note.ts
+  /theme           → colors.ts, typography.ts
+  /navigation      → StackNavigator tanımı
+App.tsx
+
+## Tasarım Kuralları
+- Arka plan: çok açık krem (#FAF9F6)
+- Yazı: koyu gri (#333), büyük başlık fontları serif, içerik sans-serif
+- Kart arka planları: pastel (#FFCDB2, #CDB4DB gibi)
+- Border radius: 12px
+- Hafif gölge: iOS ve Android için uygun shadow/elevation
+- UX: Sayfa geçişlerinde fade-in veya slide animasyonlar
+
+## İleriye Dönük Özellikler
+
+### 1. 🔎 Arama (SearchScreen)
+- Notlarda `title`, `content`, `tags` içinde geçen metinleri arayabilmeli
+- Etikete göre filtreleme (#film gibi)
+- Tarih aralığına göre filtreleme (örn. "Haziran 2025")
+- Full-text aramaya uygun veri yapısı tercih edilmeli
+
+### 2. ⏰ Hatırlatıcılar (Reminders)
+- Belirli notlara zamanlı bildirim eklenebilmesi (expo-notifications)
+- Günlük yazmayı hatırlatan push notification opsiyonu
+
+### 3. 📆 Geçmiş Günleri Görüntüleme
+- Takvim üzerinden tarih seçilerek o güne ait notlara erişim
+- Her günün notları `createdAt` alanına göre gruplanır
+
+## Teslimat Beklentisi
+1. Expo projesi `git init` edilmiş şekilde teslim
+2. README.md içinde kurulum ve çalışma adımları
+3. Yukarıdaki mimariye uygun klasör ve dosya yapısı
+4. Home, NewNote ve Detail ekranları tam fonksiyonel
+5. AsyncStorage ile not ekleme, listeleme, silme ve düzenleme çalışıyor olmalı
+6. Kod temiz, modüler ve mantıksal olarak bölünmüş
+
+Tüm bu gereksinimlere uygun şekilde projeyi sıfırdan oluştur, gerekli tüm ekranları ve bileşenleri üret. Arayüz estetik ve sezgisel olmalı. Başla.
