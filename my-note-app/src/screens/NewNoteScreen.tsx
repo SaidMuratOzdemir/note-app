@@ -123,7 +123,7 @@ export const NewNoteScreen: React.FC = () => {
         <TextInput
           style={styles.titleInput}
           placeholder="Başlık (isteğe bağlı)"
-          placeholderTextColor={Colors.placeholder}
+          placeholderTextColor={Colors.neutral.darkGray}
           value={title}
           onChangeText={setTitle}
           maxLength={100}
@@ -132,7 +132,7 @@ export const NewNoteScreen: React.FC = () => {
         <TextInput
           style={styles.contentInput}
           placeholder="Bugün neler yaşandı?"
-          placeholderTextColor={Colors.placeholder}
+          placeholderTextColor={Colors.neutral.darkGray}
           value={content}
           onChangeText={setContent}
           multiline
@@ -143,7 +143,7 @@ export const NewNoteScreen: React.FC = () => {
         <TextInput
           style={styles.tagsInput}
           placeholder="Etiketler (örn: #iş #önemli #fikir)"
-          placeholderTextColor={Colors.placeholder}
+          placeholderTextColor={Colors.neutral.darkGray}
           value={tags}
           onChangeText={setTags}
         />
@@ -179,7 +179,7 @@ export const NewNoteScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.neutral.white,
   },
   form: {
     padding: 16,
@@ -187,31 +187,31 @@ const styles = StyleSheet.create({
   titleInput: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.neutral.lightGray2,
     paddingVertical: 12,
     marginBottom: 16,
   },
   contentInput: {
     fontSize: 16,
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     minHeight: 200,
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.neutral.lightGray2,
     marginBottom: 16,
   },
   tagsInput: {
     fontSize: 14,
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.neutral.lightGray2,
     marginBottom: 16,
   },
   imageSection: {
@@ -248,14 +248,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   addImageButton: {
-    backgroundColor: Colors.cardAlt,
+    backgroundColor: Colors.primaryPastels[1],
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
   addImageText: {
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -271,6 +271,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   headerButtonTextDisabled: {
-    color: Colors.placeholder,
+    color: Colors.neutral.darkGray,
   },
 });

@@ -28,13 +28,4 @@ export const Colors = {
   success: '#A8E6CF',
   warning: '#FFE066',
   error: '#FF6B6B',
-  
-  // Legacy compatibility (will be removed in Phase 5)
-  text: '#333333',
-  card: '#FFCDB2',
-  cardAlt: '#CDB4DB',
-  fab: '#007AFF',
-  border: '#E0E0E0',
-  placeholder: '#999999',
-  legacyAccent: '#B19CD9',
 };

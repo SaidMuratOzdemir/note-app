@@ -50,6 +50,6 @@ const styles = StyleSheet.create({
   subtitle: {
     ...Typography.body,
     textAlign: 'center',
-    color: Colors.textGray,
+    color: Colors.neutral.darkGray,
   },
 });

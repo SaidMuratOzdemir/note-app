@@ -5,7 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
-import { Colors } from '../theme/colors';
+import { EmptyState } from '../components/EmptyState';
+import { Colors, Typography, Layout } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
@@ -95,7 +96,7 @@ export const SearchScreen: React.FC = () => {
         <TextInput
           style={styles.searchInput}
           placeholder="Notlarda ara..."
-          placeholderTextColor={Colors.placeholder}
+          placeholderTextColor={Colors.neutral.darkGray}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoFocus
@@ -112,8 +113,26 @@ export const SearchScreen: React.FC = () => {
         data={groupedNotes}
         renderItem={renderSection}
         keyExtractor={([date]) => date}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          groupedNotes.length === 0 && searchQuery.trim() && styles.listContainerEmpty
+        ]}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          searchQuery.trim() ? (
+            <EmptyState
+              icon="search-outline"
+              title="Sonuç bulunamadı"
+              subtitle={`"${searchQuery}" için eşleşen not bulunamadı`}
+            />
+          ) : (
+            <EmptyState
+              icon="document-text-outline"
+              title="Aramaya başlayın"
+              subtitle="Notlarınızda arama yapmak için yukarıdaki alana yazın"
+            />
+          )
+        }
       />
     </View>
   );
@@ -122,13 +141,13 @@ export const SearchScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.neutral.white,
   },
   searchContainer: {
     padding: 16,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.neutral.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.neutral.lightGray2,
   },
   searchInput: {
     backgroundColor: 'white',
@@ -137,16 +156,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.neutral.lightGray2,
   },
   resultText: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    color: Colors.placeholder,
+    color: Colors.neutral.darkGray,
     fontSize: 14,
   },
   listContainer: {
     padding: 16,
+  },
+  listContainerEmpty: {
+    flex: 1,
+    justifyContent: 'center',
   },
   section: {
     marginBottom: 24,
@@ -154,7 +177,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     marginBottom: 8,
   },
 });

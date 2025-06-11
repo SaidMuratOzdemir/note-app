@@ -141,17 +141,17 @@ export const NoteDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: Colors.background 
+    backgroundColor: Colors.neutral.white 
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.neutral.white,
   },
   loadingText: {
     fontSize: 16,
-    color: Colors.placeholder,
+    color: Colors.neutral.darkGray,
   },
   content: {
     padding: 16,
@@ -159,13 +159,13 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 28, 
     fontWeight: 'bold',
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     marginBottom: 8,
     lineHeight: 34,
   },
   time: { 
     fontSize: 14, 
-    color: Colors.placeholder, 
+    color: Colors.neutral.darkGray, 
     marginBottom: 20,
   },
   imageContainer: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   noteContent: { 
     fontSize: 16,
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     lineHeight: 24,
     marginBottom: 20,
   },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   tagsLabel: {
     fontSize: 14,
-    color: Colors.placeholder,
+    color: Colors.neutral.darkGray,
     marginBottom: 8,
     fontWeight: '500',
   },

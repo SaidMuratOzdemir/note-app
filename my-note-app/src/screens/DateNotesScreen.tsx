@@ -6,7 +6,8 @@ import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
-import { Colors } from '../theme/colors';
+import { EmptyState } from '../components/EmptyState';
+import { Colors, Typography, Layout } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type DateNotesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'DateNotes'>;
@@ -54,14 +55,6 @@ export const DateNotesScreen: React.FC = () => {
     setNotes(dateNotes);
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyStateIcon}>📝</Text>
-      <Text style={styles.emptyStateTitle}>Bu tarihte henüz not yok</Text>
-      <Text style={styles.emptyStateSubtitle}>Yeni bir not eklemek için + butonuna dokunun</Text>
-    </View>
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -87,7 +80,13 @@ export const DateNotesScreen: React.FC = () => {
           notes.length === 0 && styles.listContainerEmpty
         ]}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={
+          <EmptyState
+            icon="document-text-outline"
+            title="Bu tarihte henüz not yok"
+            subtitle="Yeni bir not eklemek için + butonuna dokunun"
+          />
+        }
       />
       
       <FAB onPress={() => navigation.navigate('NewNote', { selectedDate })} />
@@ -98,18 +97,18 @@ export const DateNotesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: Colors.background 
+    backgroundColor: Colors.neutral.white 
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.neutral.lightGray2,
     backgroundColor: 'white',
   },
   noteCount: {
     fontSize: 14,
-    color: Colors.placeholder,
+    color: Colors.neutral.darkGray,
   },
   listContainer: {
     padding: 16,
@@ -117,26 +116,5 @@ const styles = StyleSheet.create({
   listContainerEmpty: {
     flex: 1,
     justifyContent: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: Colors.placeholder,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

@@ -1,25 +1,32 @@
 # Daily Note App - Günlük Tarzı Not Tutma Uygulaması
 
-Modern ve sade tasarımlı React Native günlük uygulaması. Expo ile geliştirilmiştir.
+Modern tasarım sistemi ile geliştirilmiş React Native günlük uygulaması. Expo ile geliştirilmiştir.
 
 ## 🌟 Özellikler
 
 ### ✅ Temel Özellikler
-- **Ana Sayfa (HomeScreen)**: Bugünün tarihi ve günlük notların listesi
+- **Ana Sayfa (HomeScreen)**: Bugünün tarihi, günlük notların listesi ve yenileme desteği
 - **Yeni Not Ekleme**: Başlık, içerik, etiket ve **çoklu fotoğraf** ekleme
 - **Not Detayı**: Tam içerik görüntüleme, düzenleme ve silme
 - **Not Düzenleme**: Mevcut notları güncelleme
-- **Arama**: Tüm notlarda metin ve etiket arama
+- **Arama**: Tüm notlarda metin ve etiket arama (EmptyState ile)
 - **📅 Takvim Görünümü**: Tarihlere göre not görüntüleme ve ekleme
 - **📆 Tarih Bazlı Notlar**: Seçilen tarihe ait notları görme ve yeni not ekleme
 
+### 🎨 Modern Tasarım Sistemi
+- **Tutarlı Renkler**: 4 pastel renk rotasyonu ile not kartları
+- **Modern Tipografi**: Okunabilir fontlar ve doğru hiyerarşi
+- **Ionicons**: Profesyonel ikon seti
+- **EmptyState Bileşeni**: Bilgilendirici boş durumlar
+- **Pull-to-Refresh**: Ana sayfada yenileme desteği
+- **Modern FAB**: Yapılandırılabilir floating action button
+
 ### 📱 Kullanıcı Deneyimi
-- **Pastel Renkli Kartlar**: Her not farklı renkte görünür
 - **Çoklu Fotoğraf Desteği**: Notlara birden fazla resim ekleme ve yatay kaydırma
-- **Etiket Sistemi**: `#etiket` formatında etiketleme
+- **Etiket Sistemi**: `#etiket` formatında etiketleme ve "+X daha" gösterimi
 - **Türkçe Tarih Formatı**: Bugün, dün formatında tarih gösterimi
-- **Modern Arayüz**: Yuvarlatılmış köşeler, gölgeler ve animasyonlar
-- **Takvim Navigasyonu**: Geçmiş ve gelecek tarihlere erişim
+- **Cross-Platform**: iOS ve Android'de tutarlı görünüm
+- **Responsive**: Farklı ekran boyutlarında uyumlu
 
 ### 🔧 Teknik Özellikler
 - **AsyncStorage**: Yerel veri saklama
@@ -33,26 +40,83 @@ Modern ve sade tasarımlı React Native günlük uygulaması. Expo ile geliştir
 ```
 src/
 ├── components/          # Yeniden kullanılabilir bileşenler
-│   ├── FAB.tsx         # Floating Action Button
-│   ├── NoteCard.tsx    # Not kartı bileşeni
+│   ├── EmptyState.tsx  # Modern boş durum bileşeni
+│   ├── FAB.tsx         # Floating Action Button (Ionicons ile)
+│   ├── NoteCard.tsx    # Not kartı bileşeni (yeni tasarım sistemi)
 │   └── TagPill.tsx     # Etiket gösterimi
 ├── screens/            # Uygulama ekranları
-│   ├── HomeScreen.tsx         # Ana sayfa
+│   ├── HomeScreen.tsx         # Ana sayfa (pull-to-refresh ile)
 │   ├── NewNoteScreen.tsx      # Yeni not ekleme
 │   ├── EditNoteScreen.tsx     # Not düzenleme
 │   ├── NoteDetailScreen.tsx   # Not detayı
-│   ├── SearchScreen.tsx       # Arama ekranı
+│   ├── SearchScreen.tsx       # Arama ekranı (EmptyState ile)
 │   ├── CalendarScreen.tsx     # Takvim görünümü
 │   └── DateNotesScreen.tsx    # Tarih bazlı notlar
 ├── services/           # Veri servisleri
 │   └── storage.ts      # AsyncStorage yardımcıları
 ├── types/              # TypeScript tipleri
 │   └── Note.ts         # Not veri modeli
-├── theme/              # Tasarım sistemi
-│   ├── colors.ts       # Renk paleti
-│   └── typography.ts   # Yazı stilleri
+├── theme/              # Modern tasarım sistemi
+│   ├── index.ts        # Tema export hub'ı
+│   ├── colors.ts       # Renk paleti sistemi
+│   ├── typography.ts   # Tipografi sistemi
+│   └── layout.ts       # Layout sabitleri
 └── navigation/         # Navigasyon yapısı
     └── RootStack.tsx   # Ana navigasyon
+```
+
+## 🎨 Tasarım Sistemi
+
+### Renk Paleti
+```typescript
+export const Colors = {
+  // Ana pastel renk paleti (4 renk rotasyonu)
+  primaryPastels: ['#FFCDB2', '#CDB4DB', '#A8E6CF', '#FFE066'],
+  
+  // Vurgu renkleri
+  accent: {
+    coral: '#FFB4A2',      // Etiketler için
+    mauveGray: '#6D6875',  // İkincil etiketler
+    darkBlue: '#355070',   // Metin vurgusu
+    fuchsia: '#9E0059',    // Özel vurgular
+  },
+  
+  // Nötr renkler
+  neutral: {
+    white: '#FFFFFF',
+    lightGray1: '#F2F2F2',
+    lightGray2: '#E0E0E0', 
+    mediumGray: '#CCCCCC',
+    darkGray: '#333333',
+  },
+  
+  // Fonksiyonel renkler
+  fabBlue: '#007AFF',      // iOS mavi FAB
+  textGray: '#666666',     // İkincil metin
+};
+```
+
+### Tipografi
+```typescript
+export const Typography = {
+  h1: { fontSize: 28, fontWeight: 'bold', lineHeight: 34 },
+  h2: { fontSize: 24, fontWeight: '600', lineHeight: 30 },
+  body: { fontSize: 14, lineHeight: 20 },
+  date: { fontSize: 18, fontWeight: '500' },
+  timestamp: { fontSize: 12 },
+  tag: { fontSize: 12, fontWeight: '500' },
+};
+```
+
+### Layout Sabitleri
+```typescript
+export const Layout = {
+  screenPadding: 16,      // Ekran kenar boşluğu
+  cardRadius: 12,         // Kart köşe yuvarlaklığı
+  imageSize: 80,          // Standart görsel boyutu
+  fabSize: 56,            // FAB boyutu
+  minTouchSize: 44,       // Minimum dokunma hedefi
+};
 ```
 
 ## 🚀 Kurulum ve Çalıştırma

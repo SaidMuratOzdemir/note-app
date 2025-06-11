@@ -155,7 +155,7 @@ export const CalendarScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.neutral.white,
   },
   header: {
     flexDirection: 'row',
@@ -164,25 +164,25 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.neutral.lightGray2,
   },
   navButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.cardAlt,
+    backgroundColor: Colors.primaryPastels[1],
     alignItems: 'center',
     justifyContent: 'center',
   },
   navButtonText: {
     fontSize: 24,
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     fontWeight: 'bold',
   },
   monthTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
   },
   calendar: {
     backgroundColor: 'white',
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   weekDayText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.placeholder,
+    color: Colors.neutral.darkGray,
   },
   daysContainer: {
     flexDirection: 'row',
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 16,
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
     fontWeight: '500',
   },
   todayText: {
@@ -276,6 +276,6 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 14,
-    color: Colors.text,
+    color: Colors.neutral.darkGray,
   },
 });
