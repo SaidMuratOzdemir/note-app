@@ -1,3 +1,5 @@
+import { Reminder } from './Reminder';
+
 export interface Note {
   id: string;
   title?: string;
@@ -8,8 +10,15 @@ export interface Note {
   
   // Sub-notes system fields
   parentId?: string;           // If this is a sub-note, parent's ID
-  reminders?: string[];        // Array of reminder IDs (for future notification system)
-  scheduledDate?: string;      // For smart date suggestions (future)
+  
+  // Advanced notification system fields
+  reminders?: Reminder[];      // Array of full reminder objects for this note
+  reminderCount?: number;      // Cached count for UI performance optimization
+  hasActiveReminders?: boolean; // Quick check for active reminders without array iteration
+  nextReminderDate?: string;   // ISO string of the next upcoming reminder for quick sorting
+  
+  // Smart date functionality
+  scheduledDate?: string;      // For smart date suggestions and note organization
 }
 
 // Helper types for better TypeScript support

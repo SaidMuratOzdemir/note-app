@@ -4,10 +4,12 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
+import { Reminder } from '../types/Reminder';
 import { getNotes, getSubNoteCount } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
+import { ReminderService } from '../services/reminderService';
 import { Colors, Typography, Layout } from '../theme';
 import { getTodayLocal } from '../utils/dateUtils';
 import { SubNoteUtils } from '../utils/subNoteUtils';
@@ -19,7 +21,9 @@ export const HomeScreen: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeRemindersCount, setActiveRemindersCount] = useState(0);
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const reminderService = ReminderService.getInstance();
 
   const loadNotes = async () => {
     const all = await getNotes();
