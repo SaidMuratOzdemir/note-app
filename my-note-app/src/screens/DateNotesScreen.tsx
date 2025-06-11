@@ -9,6 +9,7 @@ import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
 import { Colors, Typography, Layout } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
+import { getTodayLocal, formatDateToLocal } from '../utils/dateUtils';
 
 type DateNotesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'DateNotes'>;
 type DateNotesScreenRouteProp = RouteProp<RootStackParamList, 'DateNotes'>;
@@ -28,13 +29,14 @@ export const DateNotesScreen: React.FC = () => {
 
   const setupHeader = () => {
     const date = new Date(selectedDate);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = getTodayLocal();
+    const yesterday = new Date(Date.now() - 86400000);
+    const yesterdayString = formatDateToLocal(yesterday);
     
     let title = '';
     if (selectedDate === today) {
       title = 'Bugün';
-    } else if (selectedDate === yesterday) {
+    } else if (selectedDate === yesterdayString) {
       title = 'Dün';
     } else {
       title = date.toLocaleDateString('tr-TR', { 

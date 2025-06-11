@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getNotes } from '../services/storage';
 import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
+import { formatDateToLocal, isToday } from '../utils/dateUtils';
 
 type CalendarScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Calendar'>;
 
@@ -22,6 +23,7 @@ export const CalendarScreen: React.FC = () => {
 
   const loadNoteDays = async () => {
     const notes = await getNotes();
+    // Use timezone-safe date formatting for consistency
     const days = new Set(notes.map(note => note.createdAt.split('T')[0]));
     setNoteDays(days);
   };
@@ -67,17 +69,14 @@ export const CalendarScreen: React.FC = () => {
   };
 
   const onDatePress = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    // Use timezone-safe date formatting
+    const dateString = formatDateToLocal(date);
     navigation.navigate('DateNotes', { date: dateString });
   };
 
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
   const hasNotes = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    // Use timezone-safe date formatting
+    const dateString = formatDateToLocal(date);
     return noteDays.has(dateString);
   };
 
@@ -116,19 +115,22 @@ export const CalendarScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[
                     styles.dayButton,
-                    isToday(date) && styles.todayButton,
-                    hasNotes(date) && styles.hasNotesButton,
+                    isToday(date) && !hasNotes(date) && styles.todayButton,
+                    hasNotes(date) && !isToday(date) && styles.hasNotesButton,
+                    isToday(date) && hasNotes(date) && styles.todayWithNotesButton,
                   ]}
                   onPress={() => onDatePress(date)}
                 >
                   <Text style={[
                     styles.dayText,
-                    isToday(date) && styles.todayText,
-                    hasNotes(date) && styles.hasNotesText,
+                    (isToday(date) || hasNotes(date)) && styles.specialDayText,
                   ]}>
                     {date.getDate()}
                   </Text>
-                  {hasNotes(date) && <View style={styles.noteDot} />}
+                  {hasNotes(date) && <View style={[
+                    styles.noteDot,
+                    isToday(date) && styles.todayNoteDot
+                  ]} />}
                 </TouchableOpacity>
               ) : (
                 <View style={styles.emptyDay} />
@@ -233,16 +235,17 @@ const styles = StyleSheet.create({
   hasNotesButton: {
     backgroundColor: Colors.success,
   },
+  todayWithNotesButton: {
+    backgroundColor: Colors.accent.darkBlue,
+    borderWidth: 3,
+    borderColor: Colors.success,
+  },
   dayText: {
     fontSize: 16,
     color: Colors.neutral.darkGray,
     fontWeight: '500',
   },
-  todayText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  hasNotesText: {
+  specialDayText: {
     color: 'white',
     fontWeight: 'bold',
   },
@@ -254,6 +257,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: 'white',
   },
+  todayNoteDot: {
+    backgroundColor: Colors.success,
+  },
   emptyDay: {
     width: dayWidth - 8,
     height: dayWidth - 8,
@@ -261,8 +267,9 @@ const styles = StyleSheet.create({
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     padding: 16,
-    gap: 24,
+    gap: 16,
   },
   legendItem: {
     flexDirection: 'row',

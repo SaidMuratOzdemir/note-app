@@ -9,6 +9,7 @@ import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
 import { Colors, Typography, Layout } from '../theme';
+import { getTodayLocal } from '../utils/dateUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -20,9 +21,10 @@ export const HomeScreen: React.FC = () => {
 
   const loadNotes = async () => {
     const all = await getNotes();
-    const today = new Date().toISOString().split('T')[0];
+    const todayString = getTodayLocal();
+    
     const todaysNotes = all
-      .filter(n => n.createdAt.startsWith(today))
+      .filter(n => n.createdAt.startsWith(todayString))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setNotes(todaysNotes);
   };
@@ -54,13 +56,23 @@ export const HomeScreen: React.FC = () => {
             onPress={() => navigation.navigate('Calendar')} 
             style={styles.headerButton}
           >
-            <Ionicons name="calendar-outline" size={24} color={Colors.neutral.darkGray} />
+            <Ionicons 
+              name="calendar-outline" 
+              size={24} 
+              color={Colors.neutral.darkGray}
+              fallback={<Text style={{ fontSize: 20 }}>📅</Text>}
+            />
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Search')} 
             style={styles.headerButton}
           >
-            <Ionicons name="search-outline" size={24} color={Colors.neutral.darkGray} />
+            <Ionicons 
+              name="search-outline" 
+              size={24} 
+              color={Colors.neutral.darkGray}
+              fallback={<Text style={{ fontSize: 20 }}>🔍</Text>}
+            />
           </TouchableOpacity>
         </View>
       ),
@@ -151,9 +163,13 @@ const styles = StyleSheet.create({
   },
   dateText: {
     ...Typography.date,
+    flex: 1,
   },
   noteCount: {
     ...Typography.caption,
+    textAlign: 'right',
+    fontSize: 14,
+    lineHeight: 18,
   },
   scrollView: {
     flex: 1,
