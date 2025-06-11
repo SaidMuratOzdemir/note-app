@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { addNote } from '../services/storage';
+import { TagService } from '../services/tagService';
 import { Note } from '../types/Note';
 import { v4 as uuid } from 'uuid';
 import { Colors } from '../theme/colors';
@@ -50,6 +51,13 @@ export const NewNoteScreen: React.FC = () => {
     
     try {
       await addNote(note);
+      
+      // Update tag cache if note has tags
+      if (parsedTags.length > 0) {
+        const tagService = TagService.getInstance();
+        tagService.updateCache();
+      }
+      
       navigation.goBack();
     } catch (error) {
       console.error('Error saving note:', error);

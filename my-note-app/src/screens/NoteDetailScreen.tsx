@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Note } from '../types/Note';
-import { getNotes, deleteNote } from '../services/storage';
+import { getNotes, deleteNote, getSubNotes, createSubNote, updateNote, deleteSubNote } from '../services/storage';
 import { TagPill } from '../components/TagPill';
-import { Colors } from '../theme/colors';
+import { SubNoteCard } from '../components/SubNoteCard';
+import { SubNoteModal } from '../components/SubNoteModal';
+import { Colors, Typography, Layout } from '../theme';
+import { SubNoteUtils } from '../utils/subNoteUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type NoteDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
@@ -14,18 +18,41 @@ type NoteDetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 
 export const NoteDetailScreen: React.FC = () => {
   const [note, setNote] = useState<Note | null>(null);
+  const [subNotes, setSubNotes] = useState<Note[]>([]);
+  const [showSubNoteModal, setShowSubNoteModal] = useState(false);
+  const [editingSubNote, setEditingSubNote] = useState<Note | undefined>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  
   const navigation = useNavigation<NoteDetailScreenNavigationProp>();
   const route = useRoute<NoteDetailScreenRouteProp>();
+
+  const isParentNote = note && !note.parentId;
 
   useEffect(() => {
     loadNote();
     setupHeaderButtons();
   }, []);
 
+  useEffect(() => {
+    if (isParentNote && note) {
+      loadSubNotes();
+    }
+  }, [note?.id, isParentNote]);
+
   const loadNote = async () => {
     const all = await getNotes();
     const foundNote = all.find(n => n.id === route.params.id);
     setNote(foundNote || null);
+  };
+
+  const loadSubNotes = async () => {
+    if (!note) return;
+    try {
+      const noteSubNotes = await getSubNotes(note.id);
+      setSubNotes(noteSubNotes);
+    } catch (error) {
+      console.error('Error loading sub-notes:', error);
+    }
   };
 
   const setupHeaderButtons = () => {
@@ -89,6 +116,55 @@ export const NoteDetailScreen: React.FC = () => {
     return datePrefix + time;
   };
 
+  const handleCreateSubNote = () => {
+    setEditingSubNote(undefined);
+    setShowSubNoteModal(true);
+  };
+
+  const handleEditSubNote = (subNote: Note) => {
+    setEditingSubNote(subNote);
+    setShowSubNoteModal(true);
+  };
+
+  const handleSaveSubNote = async (subNoteData: Partial<Note>) => {
+    if (!note) return;
+    
+    try {
+      if (editingSubNote) {
+        // Update existing sub-note
+        const updatedSubNote: Note = {
+          ...editingSubNote,
+          ...subNoteData,
+        };
+        await updateNote(updatedSubNote);
+      } else {
+        // Create new sub-note
+        await createSubNote(note.id, subNoteData);
+      }
+      
+      await loadSubNotes();
+      setShowSubNoteModal(false);
+      setEditingSubNote(undefined);
+    } catch (error) {
+      console.error('Error saving sub-note:', error);
+      Alert.alert('Hata', 'Alt not kaydedilemedi.');
+    }
+  };
+
+  const handleDeleteSubNote = async () => {
+    if (!editingSubNote) return;
+    
+    try {
+      await deleteSubNote(editingSubNote.id);
+      await loadSubNotes();
+      setShowSubNoteModal(false);
+      setEditingSubNote(undefined);
+    } catch (error) {
+      console.error('Error deleting sub-note:', error);
+      Alert.alert('Hata', 'Alt not silinemedi.');
+    }
+  };
+
   if (!note) {
     return (
       <View style={styles.loadingContainer}>
@@ -133,7 +209,56 @@ export const NoteDetailScreen: React.FC = () => {
             </View>
           </View>
         )}
+
+        {/* Sub-Notes Section - Only for parent notes */}
+        {isParentNote && (
+          <View style={styles.subNotesSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Alt Notlar ({subNotes.length})</Text>
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={handleCreateSubNote}
+              >
+                <Ionicons name="add" size={20} color={Colors.accent.darkBlue} />
+                <Text style={styles.addButtonText}>Alt Not Ekle</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {subNotes.length > 0 ? (
+              <View style={styles.subNotesList}>
+                {subNotes.map((subNote) => (
+                  <SubNoteCard
+                    key={subNote.id}
+                    note={subNote}
+                    parentNote={note}
+                    onPress={() => navigation.navigate('Detail', { id: subNote.id })}
+                    onLongPress={() => handleEditSubNote(subNote)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptySubNotes}>
+                <Text style={styles.emptySubNotesText}>
+                  Henüz alt not eklenmemiş. Alt not eklemek için yukarıdaki butonu kullanın.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
+
+      {/* Sub-Note Modal */}
+      <SubNoteModal
+        visible={showSubNoteModal}
+        parentNote={note}
+        editingSubNote={editingSubNote}
+        onSave={handleSaveSubNote}
+        onCancel={() => {
+          setShowSubNoteModal(false);
+          setEditingSubNote(undefined);
+        }}
+        onDelete={editingSubNote ? handleDeleteSubNote : undefined}
+      />
     </ScrollView>
   );
 };
@@ -211,5 +336,45 @@ const styles = StyleSheet.create({
   },
   deleteIcon: {
     fontSize: 20,
+  },
+  subNotesSection: {
+    marginTop: 24,
+    paddingHorizontal: Layout.screenPadding,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    ...Typography.h2,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.accent.coral + '20',
+    borderRadius: 16,
+  },
+  addButtonText: {
+    ...Typography.caption,
+    color: Colors.accent.darkBlue,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  subNotesList: {
+    marginTop: 8,
+  },
+  emptySubNotes: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptySubNotesText: {
+    ...Typography.body,
+    color: Colors.textGray,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

@@ -3,10 +3,12 @@ import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'r
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
-import { getNotes } from '../services/storage';
+import { getNotes, getSubNoteCount } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
+import { SubNoteCard } from '../components/SubNoteCard';
 import { EmptyState } from '../components/EmptyState';
 import { Colors, Typography, Layout } from '../theme';
+import { SubNoteUtils } from '../utils/subNoteUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
@@ -76,14 +78,38 @@ export const SearchScreen: React.FC = () => {
     return (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{formatDate(date)}</Text>
-        {notes.map((note, index) => (
-          <NoteCard 
-            key={note.id} 
-            note={note} 
-            index={index}
-            onPress={() => navigation.navigate('Detail', { id: note.id })} 
-          />
-        ))}
+        {notes.map((note, index) => {
+          const isSubNote = SubNoteUtils.isSubNote(note);
+          
+          if (isSubNote) {
+            // Find parent note for context
+            const parentNote = allNotes.find(n => n.id === note.parentId);
+            if (!parentNote) return null;
+            
+            return (
+              <SubNoteCard
+                key={note.id}
+                note={note}
+                parentNote={parentNote}
+                onPress={() => navigation.navigate('Detail', { id: note.id })}
+              />
+            );
+          } else {
+            // Regular note or parent note
+            const subNoteCount = SubNoteUtils.getSubNoteCountFromArray(note.id, allNotes);
+            
+            return (
+              <NoteCard 
+                key={note.id} 
+                note={note} 
+                index={index}
+                onPress={() => navigation.navigate('Detail', { id: note.id })}
+                subNoteCount={subNoteCount}
+                onSubNotesPress={() => navigation.navigate('Detail', { id: note.id })}
+              />
+            );
+          }
+        })}
       </View>
     );
   };

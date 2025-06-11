@@ -5,9 +5,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
+import { SubNoteCard } from '../components/SubNoteCard';
 import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
 import { Colors, Typography, Layout } from '../theme';
+import { SubNoteUtils } from '../utils/subNoteUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 import { getTodayLocal, formatDateToLocal } from '../utils/dateUtils';
 
@@ -16,6 +18,7 @@ type DateNotesScreenRouteProp = RouteProp<RootStackParamList, 'DateNotes'>;
 
 export const DateNotesScreen: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
   const navigation = useNavigation<DateNotesScreenNavigationProp>();
   const route = useRoute<DateNotesScreenRouteProp>();
   const selectedDate = route.params.date;
@@ -51,6 +54,7 @@ export const DateNotesScreen: React.FC = () => {
 
   const loadNotes = async () => {
     const all = await getNotes();
+    setAllNotes(all);
     const dateNotes = all
       .filter(n => n.createdAt.startsWith(selectedDate))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -69,13 +73,36 @@ export const DateNotesScreen: React.FC = () => {
       
       <FlatList
         data={notes}
-        renderItem={({ item, index }) => (
-          <NoteCard 
-            note={item} 
-            index={index}
-            onPress={() => navigation.navigate('Detail', { id: item.id })} 
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const isSubNote = SubNoteUtils.isSubNote(item);
+          
+          if (isSubNote) {
+            // Find parent note for context
+            const parentNote = allNotes.find(n => n.id === item.parentId);
+            if (!parentNote) return null;
+            
+            return (
+              <SubNoteCard
+                note={item}
+                parentNote={parentNote}
+                onPress={() => navigation.navigate('Detail', { id: item.id })}
+              />
+            );
+          } else {
+            // Regular note or parent note
+            const subNoteCount = SubNoteUtils.getSubNoteCountFromArray(item.id, allNotes);
+            
+            return (
+              <NoteCard 
+                note={item} 
+                index={index}
+                onPress={() => navigation.navigate('Detail', { id: item.id })}
+                subNoteCount={subNoteCount}
+                onSubNotesPress={() => navigation.navigate('Detail', { id: item.id })}
+              />
+            );
+          }
+        }}
         keyExtractor={item => item.id}
         contentContainerStyle={[
           styles.listContainer,

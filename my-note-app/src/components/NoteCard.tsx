@@ -3,14 +3,25 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { Image } from 'expo-image';
 import { Note } from '../types/Note';
 import { Colors, Typography, Layout } from '../theme';
+import { SubNoteBadge } from './SubNoteBadge';
 
 interface Props {
   note: Note;
   index: number;
   onPress: () => void;
+  subNoteCount?: number;
+  onSubNotesPress?: () => void;
+  showSubNoteBadge?: boolean;
 }
 
-export const NoteCard: React.FC<Props> = ({ note, index, onPress }) => {
+export const NoteCard: React.FC<Props> = ({ 
+  note, 
+  index, 
+  onPress, 
+  subNoteCount = 0,
+  onSubNotesPress,
+  showSubNoteBadge = true,
+}) => {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('tr-TR', { 
@@ -21,6 +32,11 @@ export const NoteCard: React.FC<Props> = ({ note, index, onPress }) => {
   };
 
   const backgroundColor = Colors.primaryPastels[index % 4];
+  const hasImages = note.imageUris && note.imageUris.length > 0;
+  const hasSubNotes = subNoteCount > 0;
+  
+  // Reduce content lines when sub-notes exist
+  const contentLines = hasSubNotes ? (hasImages ? 1 : 2) : (hasImages ? 2 : 3);
 
   return (
     <TouchableOpacity 
@@ -66,7 +82,7 @@ export const NoteCard: React.FC<Props> = ({ note, index, onPress }) => {
       {/* Content */}
       <Text 
         style={styles.content} 
-        numberOfLines={note.imageUris && note.imageUris.length > 0 ? 2 : 3}
+        numberOfLines={contentLines}
       >
         {note.content}
       </Text>
@@ -94,6 +110,15 @@ export const NoteCard: React.FC<Props> = ({ note, index, onPress }) => {
             </View>
           )}
         </View>
+      )}
+      
+      {/* Sub-Notes Badge */}
+      {showSubNoteBadge && hasSubNotes && onSubNotesPress && (
+        <SubNoteBadge 
+          count={subNoteCount}
+          onPress={onSubNotesPress}
+          style={styles.subNoteBadge}
+        />
       )}
     </TouchableOpacity>
   );
@@ -163,5 +188,8 @@ const styles = StyleSheet.create({
   },
   tagText: {
     ...Typography.tag,
+  },
+  subNoteBadge: {
+    marginTop: 8,
   },
 });

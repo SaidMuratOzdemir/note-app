@@ -6,6 +6,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Note } from '../types/Note';
 import { getNotes, updateNote } from '../services/storage';
+import { TagService } from '../services/tagService';
 import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
@@ -57,6 +58,15 @@ export const EditNoteScreen: React.FC = () => {
     };
 
     await updateNote(updatedNote);
+    
+    // Update tag cache if note has tags (new or modified)
+    const originalTags = originalNote?.tags || [];
+    const newTags = parsedTags || [];
+    if (originalTags.length > 0 || newTags.length > 0) {
+      const tagService = TagService.getInstance();
+      tagService.updateCache();
+    }
+    
     navigation.goBack();
   }, [title, content, tags, imageUris, originalNote, navigation]);
 

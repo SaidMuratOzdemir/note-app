@@ -4,18 +4,20 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
-import { getNotes } from '../services/storage';
+import { getNotes, getSubNoteCount } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
 import { Colors, Typography, Layout } from '../theme';
 import { getTodayLocal } from '../utils/dateUtils';
+import { SubNoteUtils } from '../utils/subNoteUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export const HomeScreen: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
@@ -23,10 +25,21 @@ export const HomeScreen: React.FC = () => {
     const all = await getNotes();
     const todayString = getTodayLocal();
     
-    const todaysNotes = all
-      .filter(n => n.createdAt.startsWith(todayString))
+    // Filter to only show parent notes (no sub-notes) for today
+    const todaysParentNotes = all
+      .filter(n => n.createdAt.startsWith(todayString) && !n.parentId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    setNotes(todaysNotes);
+    
+    setNotes(todaysParentNotes);
+    setAllNotes(all); // Keep all notes for sub-note counting
+  };
+
+  const getSubNoteCount = (parentId: string): number => {
+    return SubNoteUtils.getSubNoteCountFromArray(parentId, allNotes);
+  };
+
+  const handleSubNotesBadgePress = (parentNote: Note) => {
+    navigation.navigate('Detail', { id: parentNote.id });
   };
 
   const onRefresh = useCallback(async () => {
@@ -52,6 +65,17 @@ export const HomeScreen: React.FC = () => {
       },
       headerRight: () => (
         <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Tags')} 
+            style={styles.headerButton}
+          >
+            <Ionicons 
+              name="pricetags-outline" 
+              size={24} 
+              color={Colors.neutral.darkGray}
+              fallback={<Text style={{ fontSize: 20 }}>🏷️</Text>}
+            />
+          </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Calendar')} 
             style={styles.headerButton}
@@ -116,7 +140,9 @@ export const HomeScreen: React.FC = () => {
               key={note.id}
               note={note}
               index={index}
-              onPress={() => navigation.navigate('Detail', { id: note.id })}
+              onPress={() => navigation.navigate('NoteDetail', { note })}
+              subNoteCount={getSubNoteCount(note.id)}
+              onSubNotesPress={() => handleSubNotesBadgePress(note)}
             />
           ))
         ) : (
