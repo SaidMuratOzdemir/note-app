@@ -2,66 +2,96 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Note } from '../types/Note';
-import { TagPill } from './TagPill';
-import { colors } from '../theme/colors';
+import { Colors, Typography, Layout } from '../theme';
 
 interface Props {
   note: Note;
+  index: number;
   onPress: () => void;
 }
 
-const cardColors = [colors.card, colors.cardAlt, colors.success, colors.warning];
-
-export const NoteCard: React.FC<Props> = ({ note, onPress }) => {
+export const NoteCard: React.FC<Props> = ({ note, index, onPress }) => {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('tr-TR', { 
       hour: '2-digit', 
-      minute: '2-digit' 
+      minute: '2-digit',
+      hour12: false 
     });
   };
 
-  // Use note ID hash to consistently pick a color
-  const colorIndex = note.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % cardColors.length;
-  const cardColor = cardColors[colorIndex];
+  const backgroundColor = Colors.primaryPastels[index % 4];
 
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.card, { backgroundColor: cardColor }]}>
-      {note.title && <Text style={styles.title}>{note.title}</Text>}
+    <TouchableOpacity 
+      style={[styles.card, { backgroundColor }]} 
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {/* Header: Title + Timestamp */}
+      <View style={styles.header}>
+        {note.title && <Text style={styles.title}>{note.title}</Text>}
+        <Text style={styles.timestamp}>{formatTime(note.createdAt)}</Text>
+      </View>
       
-      <Text style={styles.time}>{formatTime(note.createdAt)}</Text>
-      
+      {/* Images Section */}
       {note.imageUris && note.imageUris.length > 0 && (
-        <View style={styles.imageContainer}>
+        <View style={styles.imagesContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {note.imageUris.slice(0, 3).map((uri, index) => (
+            {/* First 3 images */}
+            {note.imageUris.slice(0, 3).map((uri, imageIndex) => (
               <Image 
-                key={index} 
+                key={imageIndex}
                 source={{ uri }} 
-                style={[styles.image, index > 0 && styles.imageMargin]} 
-                contentFit="cover" 
+                style={[
+                  styles.image, 
+                  imageIndex > 0 && styles.imageMargin
+                ]} 
+                contentFit="cover"
               />
             ))}
+            
+            {/* +X more indicator */}
             {note.imageUris.length > 3 && (
               <View style={[styles.image, styles.moreImagesIndicator, styles.imageMargin]}>
-                <Text style={styles.moreImagesText}>+{note.imageUris.length - 3}</Text>
+                <Text style={styles.moreImagesText}>
+                  +{note.imageUris.length - 3}
+                </Text>
               </View>
             )}
           </ScrollView>
         </View>
       )}
       
-      <Text numberOfLines={note.imageUris && note.imageUris.length > 0 ? 2 : 3} style={styles.content}>
+      {/* Content */}
+      <Text 
+        style={styles.content} 
+        numberOfLines={note.imageUris && note.imageUris.length > 0 ? 2 : 3}
+      >
         {note.content}
       </Text>
       
+      {/* Tags */}
       {note.tags && note.tags.length > 0 && (
-        <View style={styles.tags}>
-          {note.tags.slice(0, 3).map(tag => (
-            <TagPill key={tag} label={`#${tag}`} />
+        <View style={styles.tagsContainer}>
+          {/* First 3 tags */}
+          {note.tags.slice(0, 3).map((tag, tagIndex) => (
+            <View 
+              key={tagIndex} 
+              style={[
+                styles.tag, 
+                { backgroundColor: Colors.accent.coral }
+              ]}
+            >
+              <Text style={styles.tagText}>#{tag}</Text>
+            </View>
           ))}
+          
+          {/* +X more tags indicator */}
           {note.tags.length > 3 && (
-            <Text style={styles.moreTagsText}>+{note.tags.length - 3}</Text>
+            <View style={[styles.tag, { backgroundColor: Colors.accent.mauveGray }]}>
+              <Text style={styles.tagText}>+{note.tags.length - 3}</Text>
+            </View>
           )}
         </View>
       )}
@@ -71,65 +101,67 @@ export const NoteCard: React.FC<Props> = ({ note, onPress }) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: Layout.cardRadius,
+    padding: Layout.cardPadding,
+    marginBottom: Layout.cardMargin,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: Layout.elevation.low,
     },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
-    elevation: 5,
+    elevation: Layout.elevation.medium,
   },
-  title: { 
-    fontWeight: 'bold', 
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  time: { 
-    fontSize: 12, 
-    color: '#666',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
-  imageContainer: {
+  title: {
+    ...Typography.h2,
+    flex: 1,
+    marginRight: 8,
+  },
+  timestamp: {
+    ...Typography.timestamp,
+  },
+  imagesContainer: {
     marginBottom: 8,
   },
   image: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
+    width: Layout.imageSize,
+    height: Layout.imageSize,
+    borderRadius: Layout.imageRadius,
   },
   imageMargin: {
-    marginLeft: 8,
+    marginLeft: Layout.imageSpacing,
   },
   moreImagesIndicator: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: Colors.neutral.lightGray2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   moreImagesText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
+    ...Typography.caption,
+    fontWeight: '600',
   },
-  content: { 
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
+  content: {
+    ...Typography.body,
     marginBottom: 8,
   },
-  tags: { 
-    flexDirection: 'row', 
+  tagsContainer: {
+    flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    gap: Layout.tagGap,
   },
-  moreTagsText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-    marginLeft: 4,
+  tag: {
+    paddingHorizontal: Layout.tagPadding.horizontal,
+    paddingVertical: Layout.tagPadding.vertical,
+    borderRadius: Layout.tagRadius,
+  },
+  tagText: {
+    ...Typography.tag,
   },
 });

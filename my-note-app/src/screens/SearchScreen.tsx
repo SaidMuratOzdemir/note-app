@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
-import { colors } from '../theme/colors';
+import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
@@ -75,10 +75,11 @@ export const SearchScreen: React.FC = () => {
     return (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{formatDate(date)}</Text>
-        {notes.map(note => (
+        {notes.map((note, index) => (
           <NoteCard 
             key={note.id} 
             note={note} 
+            index={index}
             onPress={() => navigation.navigate('Detail', { id: note.id })} 
           />
         ))}
@@ -94,7 +95,7 @@ export const SearchScreen: React.FC = () => {
         <TextInput
           style={styles.searchInput}
           placeholder="Notlarda ara..."
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={Colors.placeholder}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoFocus
@@ -121,13 +122,13 @@ export const SearchScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background,
   },
   searchContainer: {
     padding: 16,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: Colors.border,
   },
   searchInput: {
     backgroundColor: 'white',
@@ -136,12 +137,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: Colors.border,
   },
   resultText: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    color: colors.placeholder,
+    color: Colors.placeholder,
     fontSize: 14,
   },
   listContainer: {
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: Colors.text,
     marginBottom: 8,
   },
 });

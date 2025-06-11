@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { addNote } from '../services/storage';
 import { Note } from '../types/Note';
 import { v4 as uuid } from 'uuid';
-import { colors } from '../theme/colors';
+import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type NewNoteScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewNote'>;
@@ -123,7 +123,7 @@ export const NewNoteScreen: React.FC = () => {
         <TextInput
           style={styles.titleInput}
           placeholder="Başlık (isteğe bağlı)"
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={Colors.placeholder}
           value={title}
           onChangeText={setTitle}
           maxLength={100}
@@ -132,7 +132,7 @@ export const NewNoteScreen: React.FC = () => {
         <TextInput
           style={styles.contentInput}
           placeholder="Bugün neler yaşandı?"
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={Colors.placeholder}
           value={content}
           onChangeText={setContent}
           multiline
@@ -143,7 +143,7 @@ export const NewNoteScreen: React.FC = () => {
         <TextInput
           style={styles.tagsInput}
           placeholder="Etiketler (örn: #iş #önemli #fikir)"
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={Colors.placeholder}
           value={tags}
           onChangeText={setTags}
         />
@@ -179,7 +179,7 @@ export const NewNoteScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background,
   },
   form: {
     padding: 16,
@@ -187,31 +187,31 @@ const styles = StyleSheet.create({
   titleInput: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: Colors.text,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: Colors.border,
     paddingVertical: 12,
     marginBottom: 16,
   },
   contentInput: {
     fontSize: 16,
-    color: colors.text,
+    color: Colors.text,
     minHeight: 200,
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: Colors.border,
     marginBottom: 16,
   },
   tagsInput: {
     fontSize: 14,
-    color: colors.text,
+    color: Colors.text,
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: Colors.border,
     marginBottom: 16,
   },
   imageSection: {
@@ -248,14 +248,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   addImageButton: {
-    backgroundColor: colors.cardAlt,
+    backgroundColor: Colors.cardAlt,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
   addImageText: {
-    color: colors.text,
+    color: Colors.text,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   headerButtonText: {
-    color: colors.accent,
+    color: Colors.accent.darkBlue,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -271,6 +271,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   headerButtonTextDisabled: {
-    color: colors.placeholder,
+    color: Colors.placeholder,
   },
 });

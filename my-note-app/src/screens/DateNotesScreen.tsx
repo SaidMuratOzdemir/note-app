@@ -6,7 +6,7 @@ import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
-import { colors } from '../theme/colors';
+import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type DateNotesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'DateNotes'>;
@@ -74,9 +74,10 @@ export const DateNotesScreen: React.FC = () => {
       
       <FlatList
         data={notes}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <NoteCard 
             note={item} 
+            index={index}
             onPress={() => navigation.navigate('Detail', { id: item.id })} 
           />
         )}
@@ -97,18 +98,18 @@ export const DateNotesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: colors.background 
+    backgroundColor: Colors.background 
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: Colors.border,
     backgroundColor: 'white',
   },
   noteCount: {
     fontSize: 14,
-    color: colors.placeholder,
+    color: Colors.placeholder,
   },
   listContainer: {
     padding: 16,
@@ -128,13 +129,13 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: Colors.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: colors.placeholder,
+    color: Colors.placeholder,
     textAlign: 'center',
     lineHeight: 20,
   },

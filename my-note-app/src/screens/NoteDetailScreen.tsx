@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { Note } from '../types/Note';
 import { getNotes, deleteNote } from '../services/storage';
 import { TagPill } from '../components/TagPill';
-import { colors } from '../theme/colors';
+import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type NoteDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
@@ -141,17 +141,17 @@ export const NoteDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: colors.background 
+    backgroundColor: Colors.background 
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background,
   },
   loadingText: {
     fontSize: 16,
-    color: colors.placeholder,
+    color: Colors.placeholder,
   },
   content: {
     padding: 16,
@@ -159,13 +159,13 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 28, 
     fontWeight: 'bold',
-    color: colors.text,
+    color: Colors.text,
     marginBottom: 8,
     lineHeight: 34,
   },
   time: { 
     fontSize: 14, 
-    color: colors.placeholder, 
+    color: Colors.placeholder, 
     marginBottom: 20,
   },
   imageContainer: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   noteContent: { 
     fontSize: 16,
-    color: colors.text,
+    color: Colors.text,
     lineHeight: 24,
     marginBottom: 20,
   },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   tagsLabel: {
     fontSize: 14,
-    color: colors.placeholder,
+    color: Colors.placeholder,
     marginBottom: 8,
     fontWeight: '500',
   },

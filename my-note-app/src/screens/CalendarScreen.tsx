@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getNotes } from '../services/storage';
-import { colors } from '../theme/colors';
+import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type CalendarScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Calendar'>;
@@ -140,11 +140,11 @@ export const CalendarScreen: React.FC = () => {
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+          <View style={[styles.legendDot, { backgroundColor: Colors.accent.darkBlue }]} />
           <Text style={styles.legendText}>Bugün</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+          <View style={[styles.legendDot, { backgroundColor: Colors.success }]} />
           <Text style={styles.legendText}>Not var</Text>
         </View>
       </View>
@@ -155,7 +155,7 @@ export const CalendarScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -164,25 +164,25 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: Colors.border,
   },
   navButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.cardAlt,
+    backgroundColor: Colors.cardAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
   navButtonText: {
     fontSize: 24,
-    color: colors.text,
+    color: Colors.text,
     fontWeight: 'bold',
   },
   monthTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: Colors.text,
   },
   calendar: {
     backgroundColor: 'white',
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   weekDayText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.placeholder,
+    color: Colors.placeholder,
   },
   daysContainer: {
     flexDirection: 'row',
@@ -228,14 +228,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   todayButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: Colors.accent.darkBlue,
   },
   hasNotesButton: {
-    backgroundColor: colors.success,
+    backgroundColor: Colors.success,
   },
   dayText: {
     fontSize: 16,
-    color: colors.text,
+    color: Colors.text,
     fontWeight: '500',
   },
   todayText: {
@@ -276,6 +276,6 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 14,
-    color: colors.text,
+    color: Colors.text,
   },
 });
