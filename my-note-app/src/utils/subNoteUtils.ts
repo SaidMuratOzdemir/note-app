@@ -1,4 +1,5 @@
 import { Note, ParentNote, SubNote } from '../types/Note';
+import { logger } from './logger';
 
 // Configuration constants for hierarchy management
 export const HIERARCHY_CONFIG = {
@@ -94,7 +95,7 @@ export class SubNoteUtils {
     // Recursively build path from note to root
     const buildPath = (currentNote: Note) => {
       if (currentDepth >= maxDepth) {
-        console.warn(`[SubNoteUtils] Max depth reached for note: ${currentNote.id}`);
+        logger.warn(`[SubNoteUtils] Max depth reached for note: ${currentNote.id}`);
         return;
       }
       
@@ -142,7 +143,7 @@ export class SubNoteUtils {
     const findDescendants = (currentParentId: string) => {
       // Prevent infinite recursion
       if (visited.has(currentParentId)) {
-        console.warn(`[SubNoteUtils] Circular reference detected for note: ${currentParentId}`);
+        logger.warn(`[SubNoteUtils] Circular reference detected for note: ${currentParentId}`);
         return;
       }
       visited.add(currentParentId);
@@ -181,7 +182,7 @@ export class SubNoteUtils {
    * Checks depth limits, circular references, and performance impact
    */
   static canCreateSubNote(parentId: string, allNotes: Note[]): CanCreateResult {
-    console.log('[SubNoteUtils] 🔍 Validating sub-note creation for parent:', parentId);
+    logger.dev('[SubNoteUtils] 🔍 Validating sub-note creation for parent:', parentId);
     
     // Find parent note
     const parentNote = allNotes.find(note => note.id === parentId);
@@ -238,7 +239,7 @@ export class SubNoteUtils {
       }
     }
 
-    console.log('[SubNoteUtils] ✅ Validation complete:', {
+    logger.dev('[SubNoteUtils] ✅ Validation complete:', {
       parentId,
       isValid: result.isValid,
       currentDepth,

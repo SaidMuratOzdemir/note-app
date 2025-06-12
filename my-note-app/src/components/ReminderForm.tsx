@@ -45,6 +45,7 @@ import {
 import { Note } from '../types/Note';
 import { ReminderService } from '../services/reminderService';
 import { Colors, Typography, Layout } from '../theme';
+import { logger } from '../utils/logger';
 
 interface ReminderFormProps {
   /** The note to create a reminder for */
@@ -209,7 +210,7 @@ export const ReminderForm: React.FC<ReminderFormProps> = ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save reminder';
       Alert.alert('Error', errorMessage);
-      console.error('Save reminder error:', error);
+      logger.error('Save reminder error:', error);
     } finally {
       setIsLoading(false);
     }

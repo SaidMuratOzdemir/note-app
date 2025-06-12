@@ -4,11 +4,13 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
-import { getSubNotes } from '../services/storage';
+import { getNotes } from '../services/storage';
+import { SubNoteUtils } from '../utils/subNoteUtils';
 import { BaseNoteDetail } from './BaseNoteDetail';
 import { SubNoteCard } from './SubNoteCard';
 import { Colors, Typography, Layout } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
+import { logger } from '../utils/logger';
 
 type ParentNoteDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
 
@@ -22,10 +24,11 @@ export const ParentNoteDetailScreen: React.FC<ParentNoteDetailScreenProps> = ({ 
 
   const loadSubNotes = useCallback(async () => {
     try {
-      const noteSubNotes = await getSubNotes(note.id);
+      const allNotes = await getNotes();
+      const noteSubNotes = SubNoteUtils.getSubNotesFromArray(note.id, allNotes);
       setSubNotes(noteSubNotes);
     } catch (error) {
-      console.error('Error loading sub-notes:', error);
+      logger.error('Error loading sub-notes:', error);
     }
   }, [note.id]);
 

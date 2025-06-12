@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
 import { Colors, Typography, Layout } from '../theme';
 import { SubNoteBadge } from './SubNoteBadge';
+import { SubNoteUtils, HIERARCHY_CONFIG } from '../utils/subNoteUtils';
+import { useHierarchyPerformance } from '../utils/hierarchyPerformanceOptimizer';
+
+type HierarchyContext = 'tree' | 'list' | 'flat';
 
 interface Props {
   note: Note;
@@ -12,6 +17,12 @@ interface Props {
   subNoteCount?: number;
   onSubNotesPress?: () => void;
   showSubNoteBadge?: boolean;
+  // Enhanced hierarchy indicators
+  allNotes?: Note[];
+  hierarchyContext?: HierarchyContext;
+  indentLevel?: number;
+  showDepthIndicator?: boolean;
+  maxDepthDisplay?: number;
 }
 
 export const NoteCard: React.FC<Props> = ({ 
@@ -21,7 +32,15 @@ export const NoteCard: React.FC<Props> = ({
   subNoteCount = 0,
   onSubNotesPress,
   showSubNoteBadge = true,
+  // Enhanced hierarchy props
+  allNotes = [],
+  hierarchyContext = 'flat',
+  indentLevel = 0,
+  showDepthIndicator = false,
+  maxDepthDisplay = HIERARCHY_CONFIG.MAX_DEPTH,
 }) => {
+  const performance = useHierarchyPerformance();
+  
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('tr-TR', { 
@@ -31,19 +50,80 @@ export const NoteCard: React.FC<Props> = ({
     });
   };
 
-  const backgroundColor = Colors.primaryPastels[index % 4];
-  const hasImages = note.imageUris && note.imageUris.length > 0;
-  const hasSubNotes = subNoteCount > 0;
-  
-  // Reduce content lines when sub-notes exist
-  const contentLines = hasSubNotes ? (hasImages ? 1 : 2) : (hasImages ? 2 : 3);
+  // Memoize expensive hierarchy calculations
+  const hierarchyInfo = useMemo(() => {
+    const isSubNote = SubNoteUtils.isSubNote(note);
+    const noteDepth = allNotes && allNotes.length > 0 ? performance.getNoteDepth(note.id, allNotes) : 0;
+    const effectiveIndent = Math.max(indentLevel || 0, noteDepth);
+    const shouldShowHierarchyInfo = hierarchyContext !== 'flat' && (isSubNote || effectiveIndent > 0);
+    
+    return {
+      isSubNote,
+      noteDepth,
+      effectiveIndent,
+      shouldShowHierarchyInfo
+    };
+  }, [note, allNotes, indentLevel, hierarchyContext, performance]);
+
+  // Memoize depth color calculation
+  const depthColor = useMemo(() => {
+    const getDepthColor = (depth: number): string => {
+      if (depth === 0) return Colors.accent.darkBlue;
+      if (depth === 1) return Colors.accent.coral;
+      if (depth === 2) return Colors.success;
+      if (depth === 3) return Colors.warning;
+      return Colors.error; // For depth 4+
+    };
+    return getDepthColor(hierarchyInfo.effectiveIndent);
+  }, [hierarchyInfo.effectiveIndent]);
+
+  // Memoize hierarchy status calculation
+  const hierarchyStatus = useMemo(() => {
+    if (!allNotes || allNotes.length === 0) return null;
+    
+    const stats = performance.getHierarchyStats(note.id, allNotes);
+    if (stats.performance === 'critical') return { icon: '🔴', text: 'Kritik' };
+    if (stats.performance === 'warning') return { icon: '⚠️', text: 'Uyarı' };
+    return null;
+  }, [note.id, allNotes, performance]);
+
+  // Memoize other calculations
+  const cardInfo = useMemo(() => {
+    const backgroundColor = Colors.primaryPastels[index % 4];
+    const hasImages = note.imageUris && note.imageUris.length > 0;
+    const hasSubNotes = (subNoteCount || 0) > 0;
+    const contentLines = hasSubNotes ? (hasImages ? 1 : 2) : (hasImages ? 2 : 3);
+    
+    return {
+      backgroundColor,
+      hasImages,
+      hasSubNotes,
+      contentLines
+    };
+  }, [note.imageUris, index, subNoteCount]);
 
   return (
     <TouchableOpacity 
-      style={[styles.card, { backgroundColor }]} 
+      style={[
+        styles.card, 
+        { backgroundColor: cardInfo.backgroundColor },
+        hierarchyInfo.shouldShowHierarchyInfo && styles.hierarchyCard,
+        hierarchyInfo.effectiveIndent > 0 && { marginLeft: hierarchyInfo.effectiveIndent * 16 }
+      ]} 
       onPress={onPress}
       activeOpacity={0.8}
     >
+      {/* Depth indicator for hierarchy context */}
+      {showDepthIndicator && hierarchyInfo.shouldShowHierarchyInfo && (
+        <View style={[styles.depthIndicator, { backgroundColor: depthColor }]} />
+      )}
+
+      {/* Hierarchy status indicator */}
+      {hierarchyStatus && hierarchyContext === 'tree' && (
+        <View style={styles.hierarchyStatusContainer}>
+          <Text style={styles.hierarchyStatusIcon}>{hierarchyStatus.icon}</Text>
+        </View>
+      )}
       {/* Header: Title + Timestamp */}
       <View style={styles.header}>
         {note.title && <Text style={styles.title}>{note.title}</Text>}
@@ -51,7 +131,7 @@ export const NoteCard: React.FC<Props> = ({
       </View>
       
       {/* Images Section */}
-      {note.imageUris && note.imageUris.length > 0 && (
+      {cardInfo.hasImages && note.imageUris && (
         <View style={styles.imagesContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {/* First 3 images */}
@@ -82,7 +162,7 @@ export const NoteCard: React.FC<Props> = ({
       {/* Content */}
       <Text 
         style={styles.content} 
-        numberOfLines={contentLines}
+        numberOfLines={cardInfo.contentLines}
       >
         {note.content}
       </Text>
@@ -113,9 +193,9 @@ export const NoteCard: React.FC<Props> = ({
       )}
       
       {/* Sub-Notes Badge */}
-      {showSubNoteBadge && hasSubNotes && onSubNotesPress && (
+      {showSubNoteBadge && cardInfo.hasSubNotes && onSubNotesPress && (
         <SubNoteBadge 
-          count={subNoteCount}
+          count={subNoteCount || 0}
           onPress={onSubNotesPress}
           style={styles.subNoteBadge}
         />
@@ -191,5 +271,38 @@ const styles = StyleSheet.create({
   },
   subNoteBadge: {
     marginTop: 8,
+  },
+  // Enhanced hierarchy styles
+  hierarchyCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.neutral.lightGray2,
+  },
+  depthIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: Layout.cardRadius,
+    borderBottomLeftRadius: Layout.cardRadius,
+  },
+  hierarchyStatusContainer: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.neutral.white,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  hierarchyStatusIcon: {
+    fontSize: 12,
   },
 });

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
 import { Colors } from '../theme';
 import { SubNoteUtils, HIERARCHY_CONFIG } from '../utils/subNoteUtils';
+import { logger } from '../utils/logger';
 
 interface BreadcrumbItem {
   id: string;
@@ -35,7 +36,7 @@ export const BreadcrumbNavigation: React.FC<BreadcrumbNavigationProps> = ({
     while (current && depth < maxDepth) {
       // Check for circular reference
       if (visitedIds.has(current.id)) {
-        console.warn('[BreadcrumbNavigation] Circular reference detected:', current.id);
+        logger.warn('[BreadcrumbNavigation] Circular reference detected:', current.id);
         break;
       }
       
@@ -57,7 +58,7 @@ export const BreadcrumbNavigation: React.FC<BreadcrumbNavigationProps> = ({
     }
 
     if (depth >= maxDepth) {
-      console.error('[BreadcrumbNavigation] Max depth exceeded, possible infinite loop');
+      logger.error('[BreadcrumbNavigation] Max depth exceeded, possible infinite loop');
     }
 
     return path;

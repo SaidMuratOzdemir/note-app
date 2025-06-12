@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Note } from '../types/Note';
+import { logger } from '../utils/logger';
 import { 
   TagCache, 
   TagAnalytics, 
@@ -60,7 +61,7 @@ export class TagService {
         await this.updateCache();
       }
     } catch (error) {
-      console.error('[TagService] Initialization failed:', error);
+      logger.error('[TagService] Initialization failed:', error);
       await this.updateCache(); // Fallback to fresh calculation
     }
   }
@@ -177,7 +178,7 @@ export class TagService {
       await this.saveCache(analytics);
       this.cache = analytics;
     } catch (error) {
-      console.error('[TagService] Cache update failed:', error);
+      logger.error('[TagService] Cache update failed:', error);
       throw error;
     }
   }
@@ -251,20 +252,20 @@ export class TagService {
               typeof parsed.totalNotes === 'number' &&
               typeof parsed.lastUpdate === 'string') {
             this.cache = parsed;
-            console.log('[TagService] Cache loaded successfully');
+            logger.dev('[TagService] Cache loaded successfully');
           } else {
-            console.warn('[TagService] Invalid cache format, clearing cache');
+            logger.warn('[TagService] Invalid cache format, clearing cache');
             await AsyncStorage.removeItem(CACHE_KEYS.TAG_ANALYTICS);
             this.cache = null;
           }
         } catch (parseError) {
-          console.error('[TagService] Failed to parse cache data, clearing cache:', parseError);
+          logger.error('[TagService] Failed to parse cache data, clearing cache:', parseError);
           await AsyncStorage.removeItem(CACHE_KEYS.TAG_ANALYTICS);
           this.cache = null;
         }
       }
     } catch (error) {
-      console.error('[TagService] Failed to load cache:', error);
+      logger.error('[TagService] Failed to load cache:', error);
       this.cache = null;
     }
   }
@@ -274,7 +275,7 @@ export class TagService {
       await AsyncStorage.setItem(CACHE_KEYS.TAG_ANALYTICS, JSON.stringify(analytics));
       await AsyncStorage.setItem(CACHE_KEYS.LAST_UPDATE, analytics.lastUpdate);
     } catch (error) {
-      console.error('[TagService] Failed to save cache:', error);
+      logger.error('[TagService] Failed to save cache:', error);
       throw error;
     }
   }

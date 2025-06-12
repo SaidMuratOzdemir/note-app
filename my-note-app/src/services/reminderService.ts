@@ -38,6 +38,7 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
 } from '../types/Reminder';
 import { Note } from '../types/Note';
+import { logger } from '../utils/logger';
 
 /**
  * Core reminder service class implementing the singleton pattern
@@ -78,7 +79,7 @@ export class ReminderService {
    * Cleanup all timers and listeners (for testing/memory management)
    */
   public cleanup(): void {
-    console.log('[ReminderService] 🧹 Cleaning up timers and listeners...');
+    logger.dev('[ReminderService] 🧹 Cleaning up timers and listeners...');
     
     // Clear debounce timer
     if (this.saveDebounceTimer) {
@@ -92,7 +93,7 @@ export class ReminderService {
     // Reset initialization state
     this.isInitialized = false;
     
-    console.log('[ReminderService] ✅ Cleanup completed');
+    logger.dev('[ReminderService] ✅ Cleanup completed');
   }
 
   /**
@@ -101,44 +102,44 @@ export class ReminderService {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log('[ReminderService] 🔄 Already initialized, skipping...');
+      logger.dev('[ReminderService] 🔄 Already initialized, skipping...');
       return;
     }
 
     try {
-      console.log('[ReminderService] 🚀 Starting initialization...');
+      logger.dev('[ReminderService] 🚀 Starting initialization...');
       const startTime = Date.now();
       
       // Load configuration and settings
-      console.log('[ReminderService] 📋 Loading configuration and settings...');
+      logger.dev('[ReminderService] 📋 Loading configuration and settings...');
       await Promise.all([
         this.loadConfig(),
         this.loadSettings(),
         this.loadReminders(),
       ]);
-      console.log('[ReminderService] ✅ Configuration and data loaded successfully');
+      logger.dev('[ReminderService] ✅ Configuration and data loaded successfully');
 
       // Setup notification permissions and handlers
-      console.log('[ReminderService] 🔔 Setting up notifications...');
+      logger.dev('[ReminderService] 🔔 Setting up notifications...');
       await this.setupNotifications();
-      console.log('[ReminderService] ✅ Notifications setup completed');
+      logger.dev('[ReminderService] ✅ Notifications setup completed');
       
       // Schedule all active reminders
-      console.log('[ReminderService] ⏰ Rescheduling active reminders...');
+      logger.dev('[ReminderService] ⏰ Rescheduling active reminders...');
       await this.rescheduleAllActiveReminders();
-      console.log('[ReminderService] ✅ Active reminders rescheduled');
+      logger.dev('[ReminderService] ✅ Active reminders rescheduled');
       
       // Cleanup expired/completed reminders
-      console.log('[ReminderService] 🧹 Cleaning up expired reminders...');
+      logger.dev('[ReminderService] 🧹 Cleaning up expired reminders...');
       await this.cleanupExpiredReminders();
-      console.log('[ReminderService] ✅ Cleanup completed');
+      logger.dev('[ReminderService] ✅ Cleanup completed');
       
       const endTime = Date.now();
       const initTime = endTime - startTime;
       
       this.isInitialized = true;
-      console.log(`[ReminderService] ✅ INITIALIZATION COMPLETE - Duration: ${initTime}ms`);
-      console.log(`[ReminderService] 📊 Final Statistics:`, {
+      logger.dev(`[ReminderService] ✅ INITIALIZATION COMPLETE - Duration: ${initTime}ms`);
+      logger.dev(`[ReminderService] 📊 Final Statistics:`, {
         totalReminders: this.reminders.size,
         activeReminders: Array.from(this.reminders.values()).filter(r => r.isActive && !r.isCompleted).length,
         completedReminders: Array.from(this.reminders.values()).filter(r => r.isCompleted).length,
@@ -150,8 +151,8 @@ export class ReminderService {
       });
       
     } catch (error) {
-      console.error('[ReminderService] ❌ INITIALIZATION FAILED:', error);
-      console.error('[ReminderService] 🔍 Error details:', {
+      logger.error('[ReminderService] ❌ INITIALIZATION FAILED:', error);
+      logger.error('[ReminderService] 🔍 Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : 'No stack trace',
         timestamp: new Date().toISOString()
@@ -169,7 +170,7 @@ export class ReminderService {
    */
   async createReminder(data: ReminderCreationData): Promise<Reminder> {
     const startTime = Date.now();
-    console.log('[ReminderService] 🆕 CREATING REMINDER - Start operation:', {
+    logger.dev('[ReminderService] 🆕 CREATING REMINDER - Start operation:', {
       noteId: data.noteId,
       title: data.title,
       scheduledDate: data.scheduledDate,
@@ -182,16 +183,16 @@ export class ReminderService {
     
     try {
       await this.ensureInitialized();
-      console.log('[ReminderService] ✅ Service initialization confirmed');
+      logger.dev('[ReminderService] ✅ Service initialization confirmed');
       
       // Validation with detailed logging
-      console.log('[ReminderService] 🔍 Starting validation process...');
+      logger.dev('[ReminderService] 🔍 Starting validation process...');
       await this.validateReminderCreation(data);
-      console.log('[ReminderService] ✅ Validation passed successfully');
+      logger.dev('[ReminderService] ✅ Validation passed successfully');
 
       // Generate unique ID and log generation process
       const reminderId = this.generateUniqueId('reminder');
-      console.log('[ReminderService] 🆔 Generated unique ID:', reminderId);
+      logger.dev('[ReminderService] 🆔 Generated unique ID:', reminderId);
 
       const reminder: Reminder = {
         id: reminderId,
@@ -206,7 +207,7 @@ export class ReminderService {
         updatedAt: new Date().toISOString(),
       };
 
-      console.log('[ReminderService] 📋 Reminder object created:', {
+      logger.dev('[ReminderService] 📋 Reminder object created:', {
         id: reminder.id,
         title: reminder.title,
         scheduledDate: reminder.scheduledDate,
@@ -218,9 +219,9 @@ export class ReminderService {
 
       // Calculate next trigger for recurring reminders
       if (reminder.frequency !== 'once') {
-        console.log('[ReminderService] 🔄 Calculating next trigger for recurring reminder...');
+        logger.dev('[ReminderService] 🔄 Calculating next trigger for recurring reminder...');
         reminder.nextTrigger = this.calculateNextTrigger(reminder);
-        console.log('[ReminderService] ⏰ Next trigger calculated:', {
+        logger.dev('[ReminderService] ⏰ Next trigger calculated:', {
           frequency: reminder.frequency,
           originalDate: reminder.scheduledDate,
           nextTrigger: reminder.nextTrigger,
@@ -228,14 +229,14 @@ export class ReminderService {
             new Date(reminder.nextTrigger).getTime() - new Date(reminder.scheduledDate).getTime() : 0
         });
       } else {
-        console.log('[ReminderService] 🔁 One-time reminder, no next trigger calculation needed');
+        logger.dev('[ReminderService] 🔁 One-time reminder, no next trigger calculation needed');
       }
 
       // Store in memory
       const beforeCount = this.reminders.size;
       this.reminders.set(reminder.id, reminder);
       const afterCount = this.reminders.size;
-      console.log('[ReminderService] 💾 Stored reminder in memory:', {
+      logger.dev('[ReminderService] 💾 Stored reminder in memory:', {
         reminderId: reminder.id,
         beforeCount,
         afterCount,
@@ -245,11 +246,11 @@ export class ReminderService {
       
       // Schedule notification if appropriate
       if (reminder.isActive && !reminder.isCompleted) {
-        console.log('[ReminderService] 📅 Scheduling notification for active reminder...');
+        logger.dev('[ReminderService] 📅 Scheduling notification for active reminder...');
         await this.scheduleNotification(reminder);
-        console.log('[ReminderService] ✅ Notification scheduling completed');
+        logger.dev('[ReminderService] ✅ Notification scheduling completed');
       } else {
-        console.log('[ReminderService] ⏸️ Skipping notification scheduling:', {
+        logger.dev('[ReminderService] ⏸️ Skipping notification scheduling:', {
           isActive: reminder.isActive,
           isCompleted: reminder.isCompleted,
           reason: !reminder.isActive ? 'reminder inactive' : 'reminder completed'
@@ -257,19 +258,19 @@ export class ReminderService {
       }
 
       // Debounced save and notify listeners
-      console.log('[ReminderService] 💾 Triggering debounced save...');
+      logger.dev('[ReminderService] 💾 Triggering debounced save...');
       await this.debouncedSave();
       
-      console.log('[ReminderService] 📢 Notifying listeners...');
+      logger.dev('[ReminderService] 📢 Notifying listeners...');
       this.notifyListeners();
       
-      console.log('[ReminderService] 🗃️ Invalidating analytics cache...');
+      logger.dev('[ReminderService] 🗃️ Invalidating analytics cache...');
       this.invalidateAnalyticsCache();
 
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ REMINDER CREATION COMPLETE:', {
+      logger.dev('[ReminderService] ✅ REMINDER CREATION COMPLETE:', {
         reminderId: reminder.id,
         reminderTitle: reminder.title,
         noteId: reminder.noteId,
@@ -285,7 +286,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ REMINDER CREATION FAILED:', {
+      logger.error('[ReminderService] ❌ REMINDER CREATION FAILED:', {
         noteId: data.noteId,
         title: data.title,
         error: error instanceof Error ? error.message : String(error),
@@ -306,7 +307,7 @@ export class ReminderService {
     sortOptions?: ReminderSortOptions
   ): Promise<Reminder[]> {
     const startTime = Date.now();
-    console.log('[ReminderService] 📋 GETTING REMINDERS FOR NOTE - Start operation:', {
+    logger.dev('[ReminderService] 📋 GETTING REMINDERS FOR NOTE - Start operation:', {
       noteId,
       sortOptions: sortOptions || 'default',
       timestamp: new Date().toISOString()
@@ -314,12 +315,12 @@ export class ReminderService {
     
     try {
       await this.ensureInitialized();
-      console.log('[ReminderService] ✅ Service initialization confirmed');
+      logger.dev('[ReminderService] ✅ Service initialization confirmed');
       
       const allReminders = Array.from(this.reminders.values());
       const noteReminders = allReminders.filter(reminder => reminder.noteId === noteId);
 
-      console.log('[ReminderService] 🔍 Found reminders for note:', {
+      logger.dev('[ReminderService] 🔍 Found reminders for note:', {
         noteId,
         totalReminders: allReminders.length,
         matchingReminders: noteReminders.length,
@@ -335,7 +336,7 @@ export class ReminderService {
 
       const sortedReminders = this.sortReminders(noteReminders, sortOptions);
       
-      console.log('[ReminderService] 🔀 Applied sorting:', {
+      logger.dev('[ReminderService] 🔀 Applied sorting:', {
         sortField: sortOptions?.field || 'scheduledDate (default)',
         sortDirection: sortOptions?.direction || 'asc (default)',
         originalOrder: noteReminders.slice(0, 3).map(r => r.id),
@@ -346,7 +347,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ GET REMINDERS FOR NOTE COMPLETE:', {
+      logger.dev('[ReminderService] ✅ GET REMINDERS FOR NOTE COMPLETE:', {
         noteId,
         resultCount: sortedReminders.length,
         duration: `${duration}ms`,
@@ -360,7 +361,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ GET REMINDERS FOR NOTE FAILED:', {
+      logger.error('[ReminderService] ❌ GET REMINDERS FOR NOTE FAILED:', {
         noteId,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
@@ -396,7 +397,7 @@ export class ReminderService {
    */
   async updateReminder(reminderId: string, updates: Partial<Reminder>): Promise<Reminder> {
     const startTime = Date.now();
-    console.log('[ReminderService] 🔄 UPDATING REMINDER - Start operation:', {
+    logger.dev('[ReminderService] 🔄 UPDATING REMINDER - Start operation:', {
       reminderId,
       updateKeys: Object.keys(updates),
       updateValues: updates,
@@ -405,11 +406,11 @@ export class ReminderService {
     
     try {
       await this.ensureInitialized();
-      console.log('[ReminderService] ✅ Service initialization confirmed');
+      logger.dev('[ReminderService] ✅ Service initialization confirmed');
       
       const existingReminder = this.reminders.get(reminderId);
       if (!existingReminder) {
-        console.error('[ReminderService] ❌ REMINDER NOT FOUND:', {
+        logger.error('[ReminderService] ❌ REMINDER NOT FOUND:', {
           reminderId,
           totalReminders: this.reminders.size,
           availableIds: Array.from(this.reminders.keys()).slice(0, 5), // Show first 5 IDs
@@ -418,7 +419,7 @@ export class ReminderService {
         throw new Error(`Reminder not found: ${reminderId}`);
       }
 
-      console.log('[ReminderService] 📋 Found existing reminder:', {
+      logger.dev('[ReminderService] 📋 Found existing reminder:', {
         id: existingReminder.id,
         title: existingReminder.title,
         currentActive: existingReminder.isActive,
@@ -436,7 +437,7 @@ export class ReminderService {
         updatedAt: new Date().toISOString(),
       };
 
-      console.log('[ReminderService] 🔧 Applied updates to reminder:', {
+      logger.dev('[ReminderService] 🔧 Applied updates to reminder:', {
         reminderId,
         changedFields: Object.keys(updates),
         before: {
@@ -456,14 +457,14 @@ export class ReminderService {
       // Recalculate next trigger if frequency or date changed
       const needsRecalculation = updates.frequency || updates.scheduledDate;
       if (needsRecalculation) {
-        console.log('[ReminderService] 🔄 Recalculating next trigger due to frequency/date change...');
+        logger.dev('[ReminderService] 🔄 Recalculating next trigger due to frequency/date change...');
         const oldNextTrigger = updatedReminder.nextTrigger;
         
         updatedReminder.nextTrigger = updatedReminder.frequency !== 'once' 
           ? this.calculateNextTrigger(updatedReminder)
           : undefined;
           
-        console.log('[ReminderService] ⏰ Next trigger recalculation result:', {
+        logger.dev('[ReminderService] ⏰ Next trigger recalculation result:', {
           reminderId,
           frequency: updatedReminder.frequency,
           oldNextTrigger,
@@ -471,33 +472,33 @@ export class ReminderService {
           calculationNeeded: updatedReminder.frequency !== 'once'
         });
       } else {
-        console.log('[ReminderService] ⏸️ Next trigger recalculation not needed');
+        logger.dev('[ReminderService] ⏸️ Next trigger recalculation not needed');
       }
 
       // Update storage
       this.reminders.set(reminderId, updatedReminder);
-      console.log('[ReminderService] 💾 Updated reminder in memory storage');
+      logger.dev('[ReminderService] 💾 Updated reminder in memory storage');
       
       // Handle notification rescheduling
-      console.log('[ReminderService] 🔔 Managing notification rescheduling...');
+      logger.dev('[ReminderService] 🔔 Managing notification rescheduling...');
       try {
-        console.log('[ReminderService] 🔕 Cancelling existing notification...');
+        logger.dev('[ReminderService] 🔕 Cancelling existing notification...');
         await this.cancelNotification(reminderId);
-        console.log('[ReminderService] ✅ Existing notification cancelled');
+        logger.dev('[ReminderService] ✅ Existing notification cancelled');
         
         if (updatedReminder.isActive && !updatedReminder.isCompleted) {
-          console.log('[ReminderService] 📅 Scheduling new notification for updated reminder...');
+          logger.dev('[ReminderService] 📅 Scheduling new notification for updated reminder...');
           await this.scheduleNotification(updatedReminder);
-          console.log('[ReminderService] ✅ New notification scheduled');
+          logger.dev('[ReminderService] ✅ New notification scheduled');
         } else {
-          console.log('[ReminderService] ⏸️ Not scheduling notification:', {
+          logger.dev('[ReminderService] ⏸️ Not scheduling notification:', {
             isActive: updatedReminder.isActive,
             isCompleted: updatedReminder.isCompleted,
             reason: !updatedReminder.isActive ? 'reminder inactive' : 'reminder completed'
           });
         }
       } catch (notificationError) {
-        console.error('[ReminderService] ⚠️ Notification management error (continuing):', {
+        logger.error('[ReminderService] ⚠️ Notification management error (continuing):', {
           error: notificationError instanceof Error ? notificationError.message : String(notificationError),
           reminderId,
           operation: 'notification rescheduling'
@@ -505,19 +506,19 @@ export class ReminderService {
       }
 
       // Save and notify
-      console.log('[ReminderService] 💾 Triggering debounced save...');
+      logger.dev('[ReminderService] 💾 Triggering debounced save...');
       await this.debouncedSave();
       
-      console.log('[ReminderService] 📢 Notifying listeners...');
+      logger.dev('[ReminderService] 📢 Notifying listeners...');
       this.notifyListeners();
       
-      console.log('[ReminderService] 🗃️ Invalidating analytics cache...');
+      logger.dev('[ReminderService] 🗃️ Invalidating analytics cache...');
       this.invalidateAnalyticsCache();
 
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ REMINDER UPDATE COMPLETE:', {
+      logger.dev('[ReminderService] ✅ REMINDER UPDATE COMPLETE:', {
         reminderId,
         reminderTitle: updatedReminder.title,
         changedFields: Object.keys(updates),
@@ -534,7 +535,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ REMINDER UPDATE FAILED:', {
+      logger.error('[ReminderService] ❌ REMINDER UPDATE FAILED:', {
         reminderId,
         updates,
         error: error instanceof Error ? error.message : String(error),
@@ -551,17 +552,17 @@ export class ReminderService {
    * Delete a reminder permanently
    */
   async deleteReminder(reminderId: string): Promise<void> {
-    console.log('[ReminderService] 🗑️ Starting delete operation for reminder:', reminderId);
+    logger.dev('[ReminderService] 🗑️ Starting delete operation for reminder:', reminderId);
     
     await this.ensureInitialized();
     
     if (!this.reminders.has(reminderId)) {
-      console.error('[ReminderService] ❌ Delete failed - reminder not found:', reminderId);
+      logger.error('[ReminderService] ❌ Delete failed - reminder not found:', reminderId);
       throw new Error(`Reminder not found: ${reminderId}`);
     }
 
     const reminder = this.reminders.get(reminderId);
-    console.log('[ReminderService] 📋 Deleting reminder details:', {
+    logger.dev('[ReminderService] 📋 Deleting reminder details:', {
       id: reminder?.id,
       title: reminder?.title,
       noteId: reminder?.noteId,
@@ -571,28 +572,28 @@ export class ReminderService {
 
     // Cancel notification and remove from storage
     try {
-      console.log('[ReminderService] 🔕 Cancelling notification for deleted reminder...');
+      logger.dev('[ReminderService] 🔕 Cancelling notification for deleted reminder...');
       await this.cancelNotification(reminderId);
-      console.log('[ReminderService] ✅ Notification cancelled successfully');
+      logger.dev('[ReminderService] ✅ Notification cancelled successfully');
     } catch (error) {
-      console.error('[ReminderService] ⚠️ Error cancelling notification (proceeding with delete):', error);
+      logger.error('[ReminderService] ⚠️ Error cancelling notification (proceeding with delete):', error);
     }
 
     this.reminders.delete(reminderId);
-    console.log('[ReminderService] 🗃️ Removed from memory, remaining count:', this.reminders.size);
+    logger.dev('[ReminderService] 🗃️ Removed from memory, remaining count:', this.reminders.size);
 
     try {
       await this.debouncedSave();
-      console.log('[ReminderService] 💾 Saved changes to storage');
+      logger.dev('[ReminderService] 💾 Saved changes to storage');
     } catch (error) {
-      console.error('[ReminderService] ❌ Error saving after delete:', error);
+      logger.error('[ReminderService] ❌ Error saving after delete:', error);
     }
 
     this.notifyListeners();
     this.invalidateAnalyticsCache();
-    console.log('[ReminderService] 📢 Notified listeners and invalidated cache');
+    logger.dev('[ReminderService] 📢 Notified listeners and invalidated cache');
 
-    console.log(`[ReminderService] ✅ Successfully deleted reminder: ${reminderId}`);
+    logger.dev(`[ReminderService] ✅ Successfully deleted reminder: ${reminderId}`);
   }
 
   /**
@@ -600,18 +601,18 @@ export class ReminderService {
    */
   async completeReminder(reminderId: string): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] ✅ COMPLETING REMINDER - Start operation:', {
+    logger.dev('[ReminderService] ✅ COMPLETING REMINDER - Start operation:', {
       reminderId,
       timestamp: new Date().toISOString()
     });
     
     try {
       const now = new Date().toISOString();
-      console.log('[ReminderService] 🕐 Completion timestamp:', now);
+      logger.dev('[ReminderService] 🕐 Completion timestamp:', now);
       
       const existingReminder = this.reminders.get(reminderId);
       if (!existingReminder) {
-        console.warn('[ReminderService] ⚠️ COMPLETE SKIPPED - reminder not found (likely race condition):', {
+        logger.warn('[ReminderService] ⚠️ COMPLETE SKIPPED - reminder not found (likely race condition):', {
           reminderId,
           totalReminders: this.reminders.size,
           availableIds: Array.from(this.reminders.keys()).slice(0, 5),
@@ -619,11 +620,11 @@ export class ReminderService {
           gracefulFail: true
         });
         // Don't throw error - this is likely a race condition where reminder was deleted
-        console.log('[ReminderService] ✅ COMPLETE GRACEFULLY HANDLED - operation skipped due to missing reminder');
+        logger.dev('[ReminderService] ✅ COMPLETE GRACEFULLY HANDLED - operation skipped due to missing reminder');
         return;
       }
 
-      console.log('[ReminderService] 📋 Found reminder to complete:', {
+      logger.dev('[ReminderService] 📋 Found reminder to complete:', {
         id: existingReminder.id,
         title: existingReminder.title,
         noteId: existingReminder.noteId,
@@ -637,7 +638,7 @@ export class ReminderService {
 
       // Check if already completed
       if (existingReminder.isCompleted) {
-        console.log('[ReminderService] ℹ️ Reminder already completed:', {
+        logger.dev('[ReminderService] ℹ️ Reminder already completed:', {
           reminderId,
           completedAt: existingReminder.lastTriggered,
           skippingUpdate: true
@@ -646,7 +647,7 @@ export class ReminderService {
       }
       
       // Use updateReminder to handle completion with full logging
-      console.log('[ReminderService] 🔄 Delegating to updateReminder for completion...');
+      logger.dev('[ReminderService] 🔄 Delegating to updateReminder for completion...');
       await this.updateReminder(reminderId, {
         isCompleted: true,
         lastTriggered: now,
@@ -656,7 +657,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ REMINDER COMPLETION SUCCESSFUL:', {
+      logger.dev('[ReminderService] ✅ REMINDER COMPLETION SUCCESSFUL:', {
         reminderId,
         reminderTitle: existingReminder.title,
         completedAt: now,
@@ -670,7 +671,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ REMINDER COMPLETION FAILED:', {
+      logger.error('[ReminderService] ❌ REMINDER COMPLETION FAILED:', {
         reminderId,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
@@ -707,161 +708,13 @@ export class ReminderService {
     return result;
   }
 
-  /**
-   * Delete all reminders for a specific noteId (cleanup for temp/draft notes)
-   */
-  async deleteRemindersForNote(noteId: string): Promise<void> {
-    console.log('[ReminderService] 🗑️ Deleting all reminders for noteId:', {
-      noteId,
-      timestamp: new Date().toISOString()
-    });
 
-    try {
-      await this.ensureInitialized();
-      
-      const remindersToDelete = Array.from(this.reminders.values())
-        .filter(reminder => reminder.noteId === noteId);
-
-      if (remindersToDelete.length === 0) {
-        console.log('[ReminderService] ℹ️ No reminders found for noteId cleanup:', {
-          noteId,
-          totalReminders: this.reminders.size
-        });
-        return;
-      }
-
-      console.log('[ReminderService] 📋 Found reminders to delete:', {
-        count: remindersToDelete.length,
-        reminderIds: remindersToDelete.map(r => r.id),
-        noteId,
-        reason: 'Note cleanup (likely draft/temp note)'
-      });
-
-      // Cancel notifications and remove from memory
-      for (const reminder of remindersToDelete) {
-        try {
-          // Cancel notification if exists
-          if (reminder.notificationId) {
-            await this.cancelNotification(reminder.id);
-          }
-          
-          // Remove from memory
-          this.reminders.delete(reminder.id);
-          
-          console.log('[ReminderService] ✅ Deleted reminder:', {
-            reminderId: reminder.id,
-            reminderTitle: reminder.title,
-            hadNotification: !!reminder.notificationId
-          });
-        } catch (error) {
-          console.error('[ReminderService] ⚠️ Error deleting individual reminder (continuing):', {
-            reminderId: reminder.id,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
-
-      // Save changes
-      await this.debouncedSave();
-      this.notifyListeners();
-      this.invalidateAnalyticsCache();
-
-      console.log('[ReminderService] ✅ All reminders deleted for noteId:', {
-        deletedCount: remindersToDelete.length,
-        noteId,
-        remainingReminders: this.reminders.size
-      });
-
-    } catch (error) {
-      console.error('[ReminderService] ❌ Failed to delete reminders for noteId:', {
-        noteId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Delete all reminders for a specific noteId (cleanup for temp/draft notes)
-   */
-  async deleteRemindersForNote(noteId: string): Promise<void> {
-    console.log('[ReminderService] 🗑️ Deleting all reminders for noteId:', {
-      noteId,
-      timestamp: new Date().toISOString()
-    });
-
-    try {
-      await this.ensureInitialized();
-      
-      const remindersToDelete = Array.from(this.reminders.values())
-        .filter(reminder => reminder.noteId === noteId);
-
-      if (remindersToDelete.length === 0) {
-        console.log('[ReminderService] ℹ️ No reminders found for noteId cleanup:', {
-          noteId,
-          totalReminders: this.reminders.size
-        });
-        return;
-      }
-
-      console.log('[ReminderService] 📋 Found reminders to delete:', {
-        count: remindersToDelete.length,
-        reminderIds: remindersToDelete.map(r => r.id),
-        noteId,
-        reason: 'Note cleanup (likely draft/temp note)'
-      });
-
-      // Cancel notifications and remove from memory
-      for (const reminder of remindersToDelete) {
-        try {
-          // Cancel notification if exists
-          if (reminder.notificationId) {
-            await this.cancelNotification(reminder.id);
-          }
-          
-          // Remove from memory
-          this.reminders.delete(reminder.id);
-          
-          console.log('[ReminderService] ✅ Deleted reminder:', {
-            reminderId: reminder.id,
-            reminderTitle: reminder.title,
-            hadNotification: !!reminder.notificationId
-          });
-        } catch (error) {
-          console.error('[ReminderService] ⚠️ Error deleting individual reminder (continuing):', {
-            reminderId: reminder.id,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
-
-      // Save changes
-      await this.debouncedSave();
-      this.notifyListeners();
-      this.invalidateAnalyticsCache();
-
-      console.log('[ReminderService] ✅ All reminders deleted for noteId:', {
-        deletedCount: remindersToDelete.length,
-        noteId,
-        remainingReminders: this.reminders.size
-      });
-
-    } catch (error) {
-      console.error('[ReminderService] ❌ Failed to delete reminders for noteId:', {
-        noteId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
-      throw error;
-    }
-  }
 
   /**
    * Update reminder's noteId (for when temp note becomes real note)
    */
   async updateReminderNoteId(oldNoteId: string, newNoteId: string): Promise<void> {
-    console.log('[ReminderService] 🔄 Updating reminder noteId:', {
+    logger.dev('[ReminderService] 🔄 Updating reminder noteId:', {
       oldNoteId,
       newNoteId,
       timestamp: new Date().toISOString()
@@ -874,7 +727,7 @@ export class ReminderService {
         .filter(reminder => reminder.noteId === oldNoteId);
 
       if (remindersToUpdate.length === 0) {
-        console.log('[ReminderService] ℹ️ No reminders found for noteId update:', {
+        logger.dev('[ReminderService] ℹ️ No reminders found for noteId update:', {
           oldNoteId,
           newNoteId,
           totalReminders: this.reminders.size
@@ -882,7 +735,7 @@ export class ReminderService {
         return;
       }
 
-      console.log('[ReminderService] 📋 Found reminders to update:', {
+      logger.dev('[ReminderService] 📋 Found reminders to update:', {
         count: remindersToUpdate.length,
         reminderIds: remindersToUpdate.map(r => r.id),
         oldNoteId,
@@ -894,7 +747,7 @@ export class ReminderService {
         const updatedReminder = { ...reminder, noteId: newNoteId };
         this.reminders.set(reminder.id, updatedReminder);
         
-        console.log('[ReminderService] ✅ Updated reminder noteId:', {
+        logger.dev('[ReminderService] ✅ Updated reminder noteId:', {
           reminderId: reminder.id,
           reminderTitle: reminder.title,
           oldNoteId: reminder.noteId,
@@ -906,14 +759,14 @@ export class ReminderService {
       await this.debouncedSave();
       this.notifyListeners();
 
-      console.log('[ReminderService] ✅ All reminder noteIds updated successfully:', {
+      logger.dev('[ReminderService] ✅ All reminder noteIds updated successfully:', {
         updatedCount: remindersToUpdate.length,
         oldNoteId,
         newNoteId
       });
 
     } catch (error) {
-      console.error('[ReminderService] ❌ Failed to update reminder noteIds:', {
+      logger.error('[ReminderService] ❌ Failed to update reminder noteIds:', {
         oldNoteId,
         newNoteId,
         error: error instanceof Error ? error.message : String(error),
@@ -950,7 +803,7 @@ export class ReminderService {
    * Move note's creation date to match reminder date (smart feature)
    */
   async moveNoteToReminderDate(noteId: string, reminderDate: string): Promise<void> {
-    console.log(`[ReminderService] Moving note ${noteId} to date ${reminderDate}`);
+    logger.dev(`[ReminderService] Moving note ${noteId} to date ${reminderDate}`);
     
     // This will be integrated with StorageService to update the note
     // For now, we emit an event that the UI can listen to
@@ -1010,17 +863,17 @@ export class ReminderService {
    */
   private async setupNotifications(): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] 🔔 SETTING UP NOTIFICATIONS - Start operation:', {
+    logger.dev('[ReminderService] 🔔 SETTING UP NOTIFICATIONS - Start operation:', {
       platform: process.env.NODE_ENV || 'unknown',
       timestamp: new Date().toISOString()
     });
     
     try {
       // Request permissions
-      console.log('[ReminderService] 🔐 Requesting notification permissions...');
+      logger.dev('[ReminderService] 🔐 Requesting notification permissions...');
       const permissionResult = await Notifications.requestPermissionsAsync();
       
-      console.log('[ReminderService] 📋 Permission request result:', {
+      logger.dev('[ReminderService] 📋 Permission request result:', {
         status: permissionResult.status,
         granted: permissionResult.status === 'granted',
         canAskAgain: permissionResult.canAskAgain,
@@ -1034,7 +887,7 @@ export class ReminderService {
       });
       
       if (permissionResult.status !== 'granted') {
-        console.warn('[ReminderService] ⚠️ Notification permissions not granted:', {
+        logger.warn('[ReminderService] ⚠️ Notification permissions not granted:', {
           status: permissionResult.status,
           canAskAgain: permissionResult.canAskAgain,
           impact: 'Notifications will not work',
@@ -1043,7 +896,7 @@ export class ReminderService {
         return;
       }
 
-      console.log('[ReminderService] ✅ Notification permissions granted, configuring behavior...');
+      logger.dev('[ReminderService] ✅ Notification permissions granted, configuring behavior...');
 
       // Configure notification behavior
       const notificationHandler = {
@@ -1054,7 +907,7 @@ export class ReminderService {
         shouldShowList: this.settings.enabled,
       };
       
-      console.log('[ReminderService] ⚙️ Configuring notification handler:', {
+      logger.dev('[ReminderService] ⚙️ Configuring notification handler:', {
         shouldShowAlert: notificationHandler.shouldShowAlert,
         shouldPlaySound: notificationHandler.shouldPlaySound,
         shouldSetBadge: notificationHandler.shouldSetBadge,
@@ -1067,7 +920,7 @@ export class ReminderService {
 
       await Notifications.setNotificationHandler({
         handleNotification: async (notification) => {
-          console.log('[ReminderService] 📨 Handling incoming notification:', {
+          logger.dev('[ReminderService] 📨 Handling incoming notification:', {
             identifier: notification.request.identifier,
             title: notification.request.content.title,
             body: notification.request.content.body,
@@ -1082,7 +935,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ NOTIFICATION SETUP COMPLETE:', {
+      logger.dev('[ReminderService] ✅ NOTIFICATION SETUP COMPLETE:', {
         permissionStatus: permissionResult.status,
         handlerConfigured: true,
         duration: `${duration}ms`,
@@ -1094,7 +947,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ NOTIFICATION SETUP FAILED:', {
+      logger.error('[ReminderService] ❌ NOTIFICATION SETUP FAILED:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
         duration: `${duration}ms`,
@@ -1103,7 +956,7 @@ export class ReminderService {
       });
       
       // Don't throw - continue initialization without notifications
-      console.log('[ReminderService] 🔄 Continuing initialization without notifications...');
+      logger.dev('[ReminderService] 🔄 Continuing initialization without notifications...');
     }
   }
 
@@ -1111,11 +964,11 @@ export class ReminderService {
    * Setup notification event handlers
    */
   private setupNotificationHandlers(): void {
-    console.log('[ReminderService] 🎧 Setting up notification event handlers...');
+    logger.dev('[ReminderService] 🎧 Setting up notification event handlers...');
     
     // Handle notification received while app is in foreground
     const receivedListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('[ReminderService] 📨 NOTIFICATION RECEIVED (foreground):', {
+      logger.dev('[ReminderService] 📨 NOTIFICATION RECEIVED (foreground):', {
         identifier: notification.request.identifier,
         title: notification.request.content.title,
         body: notification.request.content.body,
@@ -1127,9 +980,9 @@ export class ReminderService {
       
       try {
         this.handleNotificationReceived(notification);
-        console.log('[ReminderService] ✅ Notification received handler completed');
+        logger.dev('[ReminderService] ✅ Notification received handler completed');
       } catch (error) {
-        console.error('[ReminderService] ❌ Error in notification received handler:', {
+        logger.error('[ReminderService] ❌ Error in notification received handler:', {
           error: error instanceof Error ? error.message : String(error),
           notificationId: notification.request.identifier
         });
@@ -1138,7 +991,7 @@ export class ReminderService {
 
     // Handle notification tapped
     const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('[ReminderService] 👆 NOTIFICATION TAPPED (user interaction):', {
+      logger.dev('[ReminderService] 👆 NOTIFICATION TAPPED (user interaction):', {
         notificationId: response.notification.request.identifier,
         actionIdentifier: response.actionIdentifier,
         userText: response.userText,
@@ -1152,9 +1005,9 @@ export class ReminderService {
       
       try {
         this.handleNotificationTapped(response);
-        console.log('[ReminderService] ✅ Notification tapped handler completed');
+        logger.dev('[ReminderService] ✅ Notification tapped handler completed');
       } catch (error) {
-        console.error('[ReminderService] ❌ Error in notification tapped handler:', {
+        logger.error('[ReminderService] ❌ Error in notification tapped handler:', {
           error: error instanceof Error ? error.message : String(error),
           notificationId: response.notification.request.identifier,
           actionIdentifier: response.actionIdentifier
@@ -1162,7 +1015,7 @@ export class ReminderService {
       }
     });
 
-    console.log('[ReminderService] ✅ Notification event handlers setup complete:', {
+    logger.dev('[ReminderService] ✅ Notification event handlers setup complete:', {
       receivedListenerActive: !!receivedListener,
       responseListenerActive: !!responseListener,
       handlersConfigured: 2
@@ -1173,7 +1026,7 @@ export class ReminderService {
    * Schedule a notification for a reminder
    */
   private async scheduleNotification(reminder: Reminder): Promise<void> {
-    console.log('[ReminderService] 📅 Starting notification scheduling for reminder:', {
+    logger.dev('[ReminderService] 📅 Starting notification scheduling for reminder:', {
       reminderId: reminder.id,
       title: reminder.title,
       scheduledDate: reminder.scheduledDate,
@@ -1184,17 +1037,17 @@ export class ReminderService {
     });
 
     if (!this.settings.enabled) {
-      console.log('[ReminderService] 🔕 Notifications disabled in settings, skipping scheduling');
+      logger.dev('[ReminderService] 🔕 Notifications disabled in settings, skipping scheduling');
       return;
     }
 
     if (!reminder.isActive) {
-      console.log('[ReminderService] ⏸️ Reminder is inactive, skipping scheduling');
+      logger.dev('[ReminderService] ⏸️ Reminder is inactive, skipping scheduling');
       return;
     }
 
     if (reminder.isCompleted) {
-      console.log('[ReminderService] ✅ Reminder is completed, skipping scheduling');
+      logger.dev('[ReminderService] ✅ Reminder is completed, skipping scheduling');
       return;
     }
 
@@ -1202,7 +1055,7 @@ export class ReminderService {
       const scheduledDate = new Date(reminder.scheduledDate);
       const now = new Date();
       
-      console.log('[ReminderService] 🕐 Time comparison:', {
+      logger.dev('[ReminderService] 🕐 Time comparison:', {
         scheduledDate: scheduledDate.toISOString(),
         currentTime: now.toISOString(),
         isPastDate: scheduledDate <= now,
@@ -1211,7 +1064,7 @@ export class ReminderService {
       
       // Don't schedule notifications for past dates
       if (scheduledDate <= now) {
-        console.warn(`[ReminderService] ⚠️ Skipping notification for past date:`, {
+        logger.warn(`[ReminderService] ⚠️ Skipping notification for past date:`, {
           reminderId: reminder.id,
           scheduledDate: scheduledDate.toISOString(),
           currentTime: now.toISOString(),
@@ -1231,7 +1084,7 @@ export class ReminderService {
         },
       };
 
-      console.log('[ReminderService] 📧 Notification content prepared:', {
+      logger.dev('[ReminderService] 📧 Notification content prepared:', {
         title: notificationContent.title,
         body: notificationContent.body,
         dataKeys: Object.keys(notificationContent.data),
@@ -1242,7 +1095,7 @@ export class ReminderService {
       const minutesUntilTrigger = Math.floor(secondsUntilTrigger / 60);
       const hoursUntilTrigger = Math.floor(minutesUntilTrigger / 60);
       
-      console.log('[ReminderService] ⏱️ Trigger timing:', {
+      logger.dev('[ReminderService] ⏱️ Trigger timing:', {
         secondsUntilTrigger,
         minutesUntilTrigger,
         hoursUntilTrigger,
@@ -1263,7 +1116,7 @@ export class ReminderService {
         trigger = null;
       }
       
-      console.log('[ReminderService] 📅 Using notification trigger:', {
+      logger.dev('[ReminderService] 📅 Using notification trigger:', {
         triggerType: trigger ? 'scheduled' : 'immediate',
         trigger,
         scheduledForFuture: secondsUntilTrigger > 1
@@ -1277,7 +1130,7 @@ export class ReminderService {
       // Store notification ID for later cancellation
       reminder.notificationId = notificationId;
       
-      console.log('[ReminderService] ✅ Notification scheduled successfully:', {
+      logger.dev('[ReminderService] ✅ Notification scheduled successfully:', {
         notificationId,
         reminderId: reminder.id,
         reminderTitle: reminder.title,
@@ -1287,7 +1140,7 @@ export class ReminderService {
       });
       
     } catch (error) {
-      console.error(`[ReminderService] ❌ NOTIFICATION SCHEDULING FAILED for reminder ${reminder.id}:`, {
+      logger.error(`[ReminderService] ❌ NOTIFICATION SCHEDULING FAILED for reminder ${reminder.id}:`, {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
         reminderId: reminder.id,
@@ -1297,7 +1150,7 @@ export class ReminderService {
       });
       
       // Don't throw - continue with other operations
-      console.log('[ReminderService] 🔄 Continuing despite notification scheduling failure...');
+      logger.dev('[ReminderService] 🔄 Continuing despite notification scheduling failure...');
     }
   }
 
@@ -1306,7 +1159,7 @@ export class ReminderService {
    */
   private async cancelNotification(reminderId: string): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] 🔕 CANCELLING NOTIFICATION - Start operation:', {
+    logger.dev('[ReminderService] 🔕 CANCELLING NOTIFICATION - Start operation:', {
       reminderId,
       timestamp: new Date().toISOString()
     });
@@ -1314,7 +1167,7 @@ export class ReminderService {
     try {
       const reminder = this.reminders.get(reminderId);
       if (!reminder) {
-        console.log('[ReminderService] ℹ️ Reminder not found in memory, cannot cancel notification:', {
+        logger.dev('[ReminderService] ℹ️ Reminder not found in memory, cannot cancel notification:', {
           reminderId,
           totalReminders: this.reminders.size,
           searchResult: 'not found'
@@ -1323,7 +1176,7 @@ export class ReminderService {
       }
 
       if (!reminder.notificationId) {
-        console.log('[ReminderService] ℹ️ No notification to cancel (no notification ID):', {
+        logger.dev('[ReminderService] ℹ️ No notification to cancel (no notification ID):', {
           reminderId,
           reminderTitle: reminder.title,
           notificationId: null,
@@ -1332,7 +1185,7 @@ export class ReminderService {
         return;
       }
 
-      console.log('[ReminderService] 🎯 Found notification to cancel:', {
+      logger.dev('[ReminderService] 🎯 Found notification to cancel:', {
         reminderId,
         reminderTitle: reminder.title,
         notificationId: reminder.notificationId,
@@ -1341,7 +1194,7 @@ export class ReminderService {
         reminderCompleted: reminder.isCompleted
       });
 
-      console.log('[ReminderService] 🚫 Calling Notifications.cancelScheduledNotificationAsync...');
+      logger.dev('[ReminderService] 🚫 Calling Notifications.cancelScheduledNotificationAsync...');
       await Notifications.cancelScheduledNotificationAsync(reminder.notificationId);
       
       // Clear notification ID from reminder
@@ -1351,7 +1204,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ NOTIFICATION CANCELLATION SUCCESSFUL:', {
+      logger.dev('[ReminderService] ✅ NOTIFICATION CANCELLATION SUCCESSFUL:', {
         reminderId,
         reminderTitle: reminder.title,
         cancelledNotificationId: oldNotificationId,
@@ -1363,7 +1216,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ NOTIFICATION CANCELLATION FAILED:', {
+      logger.error('[ReminderService] ❌ NOTIFICATION CANCELLATION FAILED:', {
         reminderId,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
@@ -1373,7 +1226,7 @@ export class ReminderService {
       });
       
       // Don't throw - this is a cleanup operation that shouldn't block other operations
-      console.log('[ReminderService] 🔄 Continuing despite notification cancellation failure...');
+      logger.dev('[ReminderService] 🔄 Continuing despite notification cancellation failure...');
     }
   }
 
@@ -1536,7 +1389,7 @@ export class ReminderService {
   // Storage methods
   private async loadReminders(): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] 📂 LOADING REMINDERS - Start operation:', {
+    logger.dev('[ReminderService] 📂 LOADING REMINDERS - Start operation:', {
       storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
       currentMemoryCount: this.reminders.size,
       timestamp: new Date().toISOString()
@@ -1546,7 +1399,7 @@ export class ReminderService {
       const stored = await AsyncStorage.getItem(REMINDER_STORAGE_KEYS.REMINDERS);
       
       if (!stored) {
-        console.log('[ReminderService] 📭 No stored reminders found in AsyncStorage:', {
+        logger.dev('[ReminderService] 📭 No stored reminders found in AsyncStorage:', {
           storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
           result: 'empty',
           startingFresh: true
@@ -1554,7 +1407,7 @@ export class ReminderService {
         return;
       }
 
-      console.log('[ReminderService] 📄 Found stored reminders data:', {
+      logger.dev('[ReminderService] 📄 Found stored reminders data:', {
         dataLength: stored.length,
         dataSize: `${(stored.length / 1024).toFixed(2)} KB`,
         parseAttempting: true
@@ -1563,12 +1416,12 @@ export class ReminderService {
       let remindersArray: Reminder[];
       try {
         remindersArray = JSON.parse(stored);
-        console.log('[ReminderService] ✅ Successfully parsed reminders JSON:', {
+        logger.dev('[ReminderService] ✅ Successfully parsed reminders JSON:', {
           arrayLength: remindersArray.length,
           isArray: Array.isArray(remindersArray)
         });
       } catch (parseError) {
-        console.error('[ReminderService] ❌ JSON parsing failed:', {
+        logger.error('[ReminderService] ❌ JSON parsing failed:', {
           error: parseError instanceof Error ? parseError.message : String(parseError),
           dataPreview: stored.substring(0, 100) + '...',
           dataLength: stored.length
@@ -1579,7 +1432,7 @@ export class ReminderService {
       // Clear memory and validate each reminder
       const beforeClearCount = this.reminders.size;
       this.reminders.clear();
-      console.log('[ReminderService] 🗄️ Cleared memory cache:', {
+      logger.dev('[ReminderService] 🗄️ Cleared memory cache:', {
         beforeCount: beforeClearCount,
         afterCount: this.reminders.size
       });
@@ -1588,7 +1441,7 @@ export class ReminderService {
       let invalidCount = 0;
       const validationErrors: string[] = [];
       
-      console.log('[ReminderService] 🔍 Validating and loading reminders...');
+      logger.dev('[ReminderService] 🔍 Validating and loading reminders...');
       remindersArray.forEach((reminder, index) => {
         try {
           // Basic validation
@@ -1596,7 +1449,7 @@ export class ReminderService {
             invalidCount++;
             const error = `Invalid reminder at index ${index}: missing required fields`;
             validationErrors.push(error);
-            console.warn('[ReminderService] ⚠️ Skipping invalid reminder:', {
+            logger.warn('[ReminderService] ⚠️ Skipping invalid reminder:', {
               index,
               id: reminder.id || 'missing',
               noteId: reminder.noteId || 'missing',
@@ -1610,7 +1463,7 @@ export class ReminderService {
           validCount++;
           
           if (validCount <= 5) { // Log details for first 5 reminders
-            console.log(`[ReminderService] ➕ Loaded reminder ${validCount}:`, {
+            logger.dev(`[ReminderService] ➕ Loaded reminder ${validCount}:`, {
               id: reminder.id,
               title: reminder.title,
               noteId: reminder.noteId,
@@ -1624,7 +1477,7 @@ export class ReminderService {
           invalidCount++;
           const error = `Error processing reminder at index ${index}: ${itemError}`;
           validationErrors.push(error);
-          console.error('[ReminderService] ❌ Error processing reminder:', {
+          logger.error('[ReminderService] ❌ Error processing reminder:', {
             index,
             error: itemError instanceof Error ? itemError.message : String(itemError),
             reminderPreview: JSON.stringify(reminder).substring(0, 100)
@@ -1650,7 +1503,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ REMINDER LOADING COMPLETE:', {
+      logger.dev('[ReminderService] ✅ REMINDER LOADING COMPLETE:', {
         source: 'AsyncStorage',
         totalFound: remindersArray.length,
         validLoaded: validCount,
@@ -1662,16 +1515,16 @@ export class ReminderService {
       });
 
       if (validationErrors.length > 0 && validationErrors.length <= 3) {
-        console.warn('[ReminderService] ⚠️ Validation errors encountered:', validationErrors);
+        logger.warn('[ReminderService] ⚠️ Validation errors encountered:', validationErrors);
       } else if (validationErrors.length > 3) {
-        console.warn(`[ReminderService] ⚠️ ${validationErrors.length} validation errors encountered (showing first 3):`, validationErrors.slice(0, 3));
+        logger.warn(`[ReminderService] ⚠️ ${validationErrors.length} validation errors encountered (showing first 3):`, validationErrors.slice(0, 3));
       }
       
     } catch (error) {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ REMINDER LOADING FAILED:', {
+      logger.error('[ReminderService] ❌ REMINDER LOADING FAILED:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
         duration: `${duration}ms`,
@@ -1681,13 +1534,13 @@ export class ReminderService {
       });
       
       // Don't throw - we can continue with empty reminders
-      console.log('[ReminderService] 🔄 Continuing with empty reminder set due to loading failure...');
+      logger.dev('[ReminderService] 🔄 Continuing with empty reminder set due to loading failure...');
     }
   }
 
   private async saveReminders(): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] 💾 SAVING REMINDERS - Start operation:', {
+    logger.dev('[ReminderService] 💾 SAVING REMINDERS - Start operation:', {
       storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
       currentMemoryCount: this.reminders.size,
       timestamp: new Date().toISOString()
@@ -1714,19 +1567,19 @@ export class ReminderService {
         }, {} as Record<string, number>)
       };
       
-      console.log('[ReminderService] 📊 Pre-save statistics:', stats);
+      logger.dev('[ReminderService] 📊 Pre-save statistics:', stats);
       
       // Serialize to JSON
       let jsonData: string;
       try {
         jsonData = JSON.stringify(remindersArray);
-        console.log('[ReminderService] ✅ JSON serialization successful:', {
+        logger.dev('[ReminderService] ✅ JSON serialization successful:', {
           arrayLength: remindersArray.length,
           jsonSize: `${(jsonData.length / 1024).toFixed(2)} KB`,
           jsonLength: jsonData.length
         });
       } catch (serializeError) {
-        console.error('[ReminderService] ❌ JSON serialization failed:', {
+        logger.error('[ReminderService] ❌ JSON serialization failed:', {
           error: serializeError instanceof Error ? serializeError.message : String(serializeError),
           reminderCount: remindersArray.length,
           sampleReminder: remindersArray.length > 0 ? {
@@ -1739,13 +1592,13 @@ export class ReminderService {
       }
       
       // Save to AsyncStorage
-      console.log('[ReminderService] 💽 Writing to AsyncStorage...');
+      logger.dev('[ReminderService] 💽 Writing to AsyncStorage...');
       await AsyncStorage.setItem(REMINDER_STORAGE_KEYS.REMINDERS, jsonData);
       
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ REMINDER SAVING COMPLETE:', {
+      logger.dev('[ReminderService] ✅ REMINDER SAVING COMPLETE:', {
         destination: 'AsyncStorage',
         storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
         reminderCount: remindersArray.length,
@@ -1759,7 +1612,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ REMINDER SAVING FAILED:', {
+      logger.error('[ReminderService] ❌ REMINDER SAVING FAILED:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
         duration: `${duration}ms`,
@@ -1800,7 +1653,7 @@ export class ReminderService {
         this.config = { ...DEFAULT_REMINDER_CONFIG, ...JSON.parse(stored) };
       }
     } catch (error) {
-      console.error('[ReminderService] Failed to load config:', error);
+      logger.error('[ReminderService] Failed to load config:', error);
     }
   }
 
@@ -1811,19 +1664,19 @@ export class ReminderService {
         this.settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(stored) };
       }
     } catch (error) {
-      console.error('[ReminderService] Failed to load settings:', error);
+      logger.error('[ReminderService] Failed to load settings:', error);
     }
   }
 
   private async rescheduleAllActiveReminders(): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] ⏰ RESCHEDULING ACTIVE REMINDERS - Start operation');
+    logger.dev('[ReminderService] ⏰ RESCHEDULING ACTIVE REMINDERS - Start operation');
     
     try {
       const activeReminders = Array.from(this.reminders.values())
         .filter(r => r.isActive && !r.isCompleted);
         
-      console.log('[ReminderService] 📊 Found active reminders to reschedule:', {
+      logger.dev('[ReminderService] 📊 Found active reminders to reschedule:', {
         totalReminders: this.reminders.size,
         activeReminders: activeReminders.length,
         completedReminders: Array.from(this.reminders.values()).filter(r => r.isCompleted).length,
@@ -1831,7 +1684,7 @@ export class ReminderService {
       });
 
       if (activeReminders.length === 0) {
-        console.log('[ReminderService] ℹ️ No active reminders to reschedule');
+        logger.dev('[ReminderService] ℹ️ No active reminders to reschedule');
         return;
       }
 
@@ -1840,11 +1693,11 @@ export class ReminderService {
       let errorCount = 0;
       const errors: string[] = [];
 
-      console.log('[ReminderService] 🔄 Processing reminders for rescheduling...');
+      logger.dev('[ReminderService] 🔄 Processing reminders for rescheduling...');
       
       for (const reminder of activeReminders) {
         try {
-          console.log(`[ReminderService] 📅 Rescheduling reminder ${scheduledCount + 1}/${activeReminders.length}:`, {
+          logger.dev(`[ReminderService] 📅 Rescheduling reminder ${scheduledCount + 1}/${activeReminders.length}:`, {
             id: reminder.id,
             title: reminder.title,
             scheduledDate: reminder.scheduledDate,
@@ -1858,7 +1711,7 @@ export class ReminderService {
           errorCount++;
           const errorMsg = `Failed to reschedule ${reminder.id}: ${error}`;
           errors.push(errorMsg);
-          console.error('[ReminderService] ❌ Rescheduling error:', {
+          logger.error('[ReminderService] ❌ Rescheduling error:', {
             reminderId: reminder.id,
             reminderTitle: reminder.title,
             error: error instanceof Error ? error.message : String(error)
@@ -1869,7 +1722,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ RESCHEDULING COMPLETE:', {
+      logger.dev('[ReminderService] ✅ RESCHEDULING COMPLETE:', {
         totalProcessed: activeReminders.length,
         successfullyScheduled: scheduledCount,
         skipped: skippedCount,
@@ -1879,16 +1732,16 @@ export class ReminderService {
       });
 
       if (errors.length > 0 && errors.length <= 3) {
-        console.warn('[ReminderService] ⚠️ Rescheduling errors:', errors);
+        logger.warn('[ReminderService] ⚠️ Rescheduling errors:', errors);
       } else if (errors.length > 3) {
-        console.warn(`[ReminderService] ⚠️ ${errors.length} rescheduling errors (showing first 3):`, errors.slice(0, 3));
+        logger.warn(`[ReminderService] ⚠️ ${errors.length} rescheduling errors (showing first 3):`, errors.slice(0, 3));
       }
       
     } catch (error) {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ RESCHEDULING OPERATION FAILED:', {
+      logger.error('[ReminderService] ❌ RESCHEDULING OPERATION FAILED:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
         duration: `${duration}ms`,
@@ -1896,13 +1749,13 @@ export class ReminderService {
       });
       
       // Don't throw - this is initialization cleanup
-      console.log('[ReminderService] 🔄 Continuing initialization despite rescheduling failure...');
+      logger.dev('[ReminderService] 🔄 Continuing initialization despite rescheduling failure...');
     }
   }
 
   private async cleanupExpiredReminders(): Promise<void> {
     const startTime = Date.now();
-    console.log('[ReminderService] 🧹 CLEANING UP EXPIRED REMINDERS - Start operation');
+    logger.dev('[ReminderService] 🧹 CLEANING UP EXPIRED REMINDERS - Start operation');
     
     try {
       const now = new Date();
@@ -1914,7 +1767,7 @@ export class ReminderService {
           return scheduledDate < expiredThreshold;
         });
 
-      console.log('[ReminderService] 📊 Expired reminder analysis:', {
+      logger.dev('[ReminderService] 📊 Expired reminder analysis:', {
         totalReminders: this.reminders.size,
         expiredFound: expiredReminders.length,
         checkingCriteria: 'one-time reminders older than 24 hours',
@@ -1923,7 +1776,7 @@ export class ReminderService {
       });
 
       if (expiredReminders.length === 0) {
-        console.log('[ReminderService] ✅ No expired reminders found - cleanup not needed');
+        logger.dev('[ReminderService] ✅ No expired reminders found - cleanup not needed');
         return;
       }
 
@@ -1931,12 +1784,12 @@ export class ReminderService {
       let errorCount = 0;
       const errors: string[] = [];
 
-      console.log('[ReminderService] 🗑️ Processing expired reminders...');
+      logger.dev('[ReminderService] 🗑️ Processing expired reminders...');
       
       for (const reminder of expiredReminders) {
         try {
           if (!reminder.isCompleted && reminder.isActive) {
-            console.log('[ReminderService] 📝 Auto-completing expired active reminder:', {
+            logger.dev('[ReminderService] 📝 Auto-completing expired active reminder:', {
               id: reminder.id,
               title: reminder.title,
               scheduledDate: reminder.scheduledDate,
@@ -1952,7 +1805,7 @@ export class ReminderService {
             
             cleanedCount++;
           } else {
-            console.log('[ReminderService] ℹ️ Skipping expired reminder (already completed/inactive):', {
+            logger.dev('[ReminderService] ℹ️ Skipping expired reminder (already completed/inactive):', {
               id: reminder.id,
               title: reminder.title,
               isCompleted: reminder.isCompleted,
@@ -1963,7 +1816,7 @@ export class ReminderService {
           errorCount++;
           const errorMsg = `Failed to cleanup ${reminder.id}: ${error}`;
           errors.push(errorMsg);
-          console.error('[ReminderService] ❌ Cleanup error:', {
+          logger.error('[ReminderService] ❌ Cleanup error:', {
             reminderId: reminder.id,
             reminderTitle: reminder.title,
             error: error instanceof Error ? error.message : String(error)
@@ -1974,7 +1827,7 @@ export class ReminderService {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.log('[ReminderService] ✅ CLEANUP COMPLETE:', {
+      logger.dev('[ReminderService] ✅ CLEANUP COMPLETE:', {
         expiredFound: expiredReminders.length,
         cleanedUp: cleanedCount,
         errors: errorCount,
@@ -1984,14 +1837,14 @@ export class ReminderService {
       });
 
       if (errors.length > 0) {
-        console.warn('[ReminderService] ⚠️ Cleanup errors:', errors);
+        logger.warn('[ReminderService] ⚠️ Cleanup errors:', errors);
       }
       
     } catch (error) {
       const endTime = Date.now();
       const duration = endTime - startTime;
       
-      console.error('[ReminderService] ❌ CLEANUP OPERATION FAILED:', {
+      logger.error('[ReminderService] ❌ CLEANUP OPERATION FAILED:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'No stack trace',
         duration: `${duration}ms`,
@@ -1999,7 +1852,7 @@ export class ReminderService {
       });
       
       // Don't throw - this is initialization cleanup
-      console.log('[ReminderService] 🔄 Continuing initialization despite cleanup failure...');
+      logger.dev('[ReminderService] 🔄 Continuing initialization despite cleanup failure...');
     }
   }
 
@@ -2007,7 +1860,7 @@ export class ReminderService {
    * Delete all reminders for a specific note
    */
   async deleteRemindersForNote(noteId: string): Promise<void> {
-    console.log('[ReminderService] 🗑️ Starting delete operation for all reminders of note:', noteId);
+    logger.dev('[ReminderService] 🗑️ Starting delete operation for all reminders of note:', noteId);
     
     await this.ensureInitialized();
     
@@ -2015,11 +1868,11 @@ export class ReminderService {
       .filter(r => r.noteId === noteId);
     
     if (noteReminders.length === 0) {
-      console.log('[ReminderService] ℹ️ No reminders found for note:', noteId);
+      logger.dev('[ReminderService] ℹ️ No reminders found for note:', noteId);
       return;
     }
 
-    console.log('[ReminderService] 📊 Found reminders to delete:', {
+    logger.dev('[ReminderService] 📊 Found reminders to delete:', {
       noteId,
       reminderCount: noteReminders.length,
       reminderIds: noteReminders.map(r => r.id)
@@ -2029,12 +1882,12 @@ export class ReminderService {
     for (const reminder of noteReminders) {
       try {
         await this.deleteReminder(reminder.id);
-        console.log('[ReminderService] ✅ Deleted reminder:', {
+        logger.dev('[ReminderService] ✅ Deleted reminder:', {
           id: reminder.id,
           title: reminder.title
         });
       } catch (error) {
-        console.error('[ReminderService] ❌ Failed to delete reminder:', {
+        logger.error('[ReminderService] ❌ Failed to delete reminder:', {
           id: reminder.id,
           title: reminder.title,
           error: error instanceof Error ? error.message : String(error)
@@ -2043,7 +1896,7 @@ export class ReminderService {
       }
     }
 
-    console.log('[ReminderService] ✅ Completed deletion of all reminders for note:', noteId);
+    logger.dev('[ReminderService] ✅ Completed deletion of all reminders for note:', noteId);
   }
 
   // Event handling
@@ -2053,12 +1906,12 @@ export class ReminderService {
   }
 
   private emitEvent(eventType: string, data: any): void {
-    console.log(`[ReminderService] Event: ${eventType}`, data);
+    logger.dev(`[ReminderService] Event: ${eventType}`, data);
     // Event emission for UI integration
   }
 
   private handleNotificationReceived(notification: any): void {
-    console.log('[ReminderService] 🔔 Processing received notification:', {
+    logger.dev('[ReminderService] 🔔 Processing received notification:', {
       identifier: notification.request?.identifier,
       contentTitle: notification.request?.content?.title,
       hasData: !!notification.request?.content?.data,
@@ -2068,7 +1921,7 @@ export class ReminderService {
     
     const data = notification.request?.content?.data;
     if (data?.reminderId) {
-      console.log('[ReminderService] 🎯 Found reminder data in notification:', {
+      logger.dev('[ReminderService] 🎯 Found reminder data in notification:', {
         reminderId: data.reminderId,
         noteId: data.noteId,
         frequency: data.frequency,
@@ -2078,7 +1931,7 @@ export class ReminderService {
       // Mark reminder as triggered (if it exists)
       const reminder = this.reminders.get(data.reminderId);
       if (reminder) {
-        console.log('[ReminderService] ✅ Found matching reminder in memory:', {
+        logger.dev('[ReminderService] ✅ Found matching reminder in memory:', {
           reminderId: reminder.id,
           title: reminder.title,
           wasActive: reminder.isActive,
@@ -2086,20 +1939,20 @@ export class ReminderService {
         });
         
         // You could implement auto-completion or other logic here
-        console.log('[ReminderService] ℹ️ Notification received for active reminder - no auto-actions configured');
+        logger.dev('[ReminderService] ℹ️ Notification received for active reminder - no auto-actions configured');
       } else {
-        console.warn('[ReminderService] ⚠️ Notification received for unknown reminder:', {
+        logger.warn('[ReminderService] ⚠️ Notification received for unknown reminder:', {
           reminderId: data.reminderId,
           possibleCause: 'reminder deleted or not loaded'
         });
       }
     } else {
-      console.log('[ReminderService] ℹ️ Notification received without reminder data');
+      logger.dev('[ReminderService] ℹ️ Notification received without reminder data');
     }
   }
 
   private handleNotificationTapped(response: any): void {
-    console.log('[ReminderService] 👆 Processing notification tap:', {
+    logger.dev('[ReminderService] 👆 Processing notification tap:', {
       actionIdentifier: response.actionIdentifier,
       hasUserText: !!response.userText,
       notificationId: response.notification?.request?.identifier,
@@ -2108,14 +1961,14 @@ export class ReminderService {
     
     const data = response.notification?.request?.content?.data;
     if (data?.noteId) {
-      console.log('[ReminderService] 🎯 Found note navigation data:', {
+      logger.dev('[ReminderService] 🎯 Found note navigation data:', {
         noteId: data.noteId,
         reminderId: data.reminderId,
         frequency: data.frequency,
         navigationTarget: 'note detail'
       });
       
-      console.log('[ReminderService] 🚀 Emitting navigation event for note:', data.noteId);
+      logger.dev('[ReminderService] 🚀 Emitting navigation event for note:', data.noteId);
       this.emitEvent('navigateToNote', { 
         noteId: data.noteId, 
         reminderId: data.reminderId,
@@ -2127,7 +1980,7 @@ export class ReminderService {
       if (data.reminderId) {
         const reminder = this.reminders.get(data.reminderId);
         if (reminder && reminder.isActive && !reminder.isCompleted) {
-          console.log('[ReminderService] 📝 Marking reminder as triggered by user tap:', {
+          logger.dev('[ReminderService] 📝 Marking reminder as triggered by user tap:', {
             reminderId: reminder.id,
             title: reminder.title
           });
@@ -2137,7 +1990,7 @@ export class ReminderService {
         }
       }
     } else {
-      console.log('[ReminderService] ℹ️ Notification tapped without navigation data');
+      logger.dev('[ReminderService] ℹ️ Notification tapped without navigation data');
     }
   }
 
@@ -2255,17 +2108,17 @@ export class ReminderService {
   // Public API for listeners
   public addListener(id: string, callback: (reminders: Reminder[]) => void): void {
     this.listeners.set(id, callback);
-    console.log(`[ReminderService] 📡 Added listener: ${id}, total: ${this.listeners.size}`);
+    logger.dev(`[ReminderService] 📡 Added listener: ${id}, total: ${this.listeners.size}`);
   }
 
   public removeListener(id: string): void {
     const removed = this.listeners.delete(id);
-    console.log(`[ReminderService] 🗑️ Removed listener: ${id}, success: ${removed}, remaining: ${this.listeners.size}`);
+    logger.dev(`[ReminderService] 🗑️ Removed listener: ${id}, success: ${removed}, remaining: ${this.listeners.size}`);
   }
 
   public clearAllListeners(): void {
     const count = this.listeners.size;
     this.listeners.clear();
-    console.log(`[ReminderService] 🧹 Cleared all ${count} listeners`);
+    logger.dev(`[ReminderService] 🧹 Cleared all ${count} listeners`);
   }
 }

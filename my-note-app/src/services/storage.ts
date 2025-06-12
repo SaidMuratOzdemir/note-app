@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Note } from '../types/Note';
 import { SubNoteUtils } from '../utils/subNoteUtils';
+import { HierarchyPerformanceOptimizer } from '../utils/hierarchyPerformanceOptimizer';
+import { logger } from '../utils/logger';
 import { v4 as uuid } from 'uuid';
 
 const NOTES_KEY = 'notes';
@@ -8,21 +10,20 @@ const NOTES_KEY = 'notes';
 export async function getNotes(): Promise<Note[]> {
   try {
     const json = await AsyncStorage.getItem(NOTES_KEY);
+    
     if (!json) return [];
     
     const parsed = JSON.parse(json);
     
-    // Type validation - ensure it's an array
     if (!Array.isArray(parsed)) {
-      console.error('[Storage] Invalid data format - not an array, resetting to empty');
-      await AsyncStorage.removeItem(NOTES_KEY);
+      logger.error('[Storage] Invalid data format - not an array, resetting to empty');
       return [];
     }
     
     // Validate each note has required fields
-    const validNotes = parsed.filter((note: any) => {
-      if (!note.id || !note.createdAt) {
-        console.warn('[Storage] Skipping invalid note:', note);
+    const validNotes = parsed.filter(note => {
+      if (!note || typeof note.id !== 'string' || typeof note.title !== 'string') {
+        logger.warn('[Storage] Skipping invalid note:', note);
         return false;
       }
       return true;
@@ -30,283 +31,235 @@ export async function getNotes(): Promise<Note[]> {
     
     return validNotes;
   } catch (error) {
-    console.error('[Storage] Failed to parse notes JSON:', error);
-    // Backup corrupted data and reset
+    logger.error('[Storage] Failed to parse notes JSON:', error);
+    
+    // Backup corrupted data for recovery
     try {
-      const corruptedData = await AsyncStorage.getItem(NOTES_KEY);
-      if (corruptedData) {
-        await AsyncStorage.setItem(`${NOTES_KEY}_corrupted_${Date.now()}`, corruptedData);
-        console.log('[Storage] Backed up corrupted data');
+      const json = await AsyncStorage.getItem(NOTES_KEY);
+      if (json) {
+        await AsyncStorage.setItem(`${NOTES_KEY}_corrupted_${Date.now()}`, json);
+        logger.dev('[Storage] Backed up corrupted data');
       }
     } catch (backupError) {
-      console.error('[Storage] Failed to backup corrupted data:', backupError);
+      logger.error('[Storage] Failed to backup corrupted data:', backupError);
     }
     
-    await AsyncStorage.removeItem(NOTES_KEY);
     return [];
   }
 }
 
 export async function saveNotes(notes: Note[]): Promise<void> {
-  await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-}
-
-export async function addNote(note: Note): Promise<void> {
   try {
-    const notes = await getNotes();
-    notes.push(note);
-    await saveNotes(notes);
+    const json = JSON.stringify(notes);
+    await AsyncStorage.setItem(NOTES_KEY, json);
   } catch (error) {
-    console.error('Error in addNote:', error);
     throw error;
   }
 }
 
-export async function updateNote(note: Note): Promise<void> {
-  const notes = await getNotes();
-  const idx = notes.findIndex(n => n.id === note.id);
-  if (idx !== -1) {
-    notes[idx] = note;
+export async function addNote(note: Note): Promise<string> {
+  try {
+    const notes = await getNotes();
+    const noteToAdd = { ...note, id: note.id || uuid() };
+    notes.push(noteToAdd);
     await saveNotes(notes);
+    return noteToAdd.id;
+  } catch (error) {
+    logger.error('Error in addNote:', error);
+    throw error;
+  }
+}
+
+export async function updateNote(updatedNote: Note): Promise<void> {
+  try {
+    const notes = await getNotes();
+    const index = notes.findIndex(note => note.id === updatedNote.id);
+    
+    if (index !== -1) {
+      const oldNote = notes[index];
+      notes[index] = updatedNote;
+      await saveNotes(notes);
+      
+      // Invalidate cache for performance optimizer if hierarchy changed
+      const optimizer = HierarchyPerformanceOptimizer.getInstance();
+      if (oldNote.parentId && oldNote.parentId !== updatedNote.parentId) {
+        optimizer.invalidateCache(oldNote.parentId, notes);
+      }
+      if (updatedNote.parentId && updatedNote.parentId !== oldNote.parentId) {
+        optimizer.invalidateCache(updatedNote.parentId, notes);
+      }
+    }
+  } catch (error) {
+    throw error;
   }
 }
 
 export async function deleteNote(id: string): Promise<void> {
   try {
     const notes = await getNotes();
-    const filtered = notes.filter(n => n.id !== id);
-    await saveNotes(filtered);
-
-    // Clean up reminders for deleted note
-    try {
-      const { ReminderService } = await import('./reminderService');
-      const reminderService = ReminderService.getInstance();
-      await reminderService.deleteRemindersForNote(id);
-      console.log(`[Storage] Cleaned up reminders for deleted note: ${id}`);
-    } catch (reminderError) {
-      console.warn(`[Storage] Failed to clean up reminders for note ${id}:`, reminderError);
-      // Don't throw here - note deletion should succeed even if reminder cleanup fails
+    const noteToDelete = notes.find(note => note.id === id);
+    const filteredNotes = notes.filter(note => note.id !== id);
+    await saveNotes(filteredNotes);
+    
+    // Invalidate cache for performance optimizer
+    const optimizer = HierarchyPerformanceOptimizer.getInstance();
+    if (noteToDelete?.parentId) {
+      optimizer.invalidateCache(noteToDelete.parentId, filteredNotes);
     }
+    
+    // Clean up related reminders
+    try {
+      const reminders = await AsyncStorage.getItem('reminders');
+      if (reminders) {
+        const reminderArray = JSON.parse(reminders);
+        const filteredReminders = reminderArray.filter((reminder: any) => reminder.noteId !== id);
+        await AsyncStorage.setItem('reminders', JSON.stringify(filteredReminders));
+        logger.dev(`[Storage] Cleaned up reminders for deleted note: ${id}`);
+      }
+    } catch (reminderError) {
+      logger.warn(`[Storage] Failed to clean up reminders for note ${id}:`, reminderError);
+    }
+    
   } catch (error) {
-    console.error('Error in deleteNote:', error);
+    logger.error('Error in deleteNote:', error);
     throw error;
   }
 }
 
-// SUB-NOTES SPECIFIC FUNCTIONS
-
-/**
- * Get all parent notes (notes without parentId)
- * Used for HomeScreen display
- */
-export async function getParentNotes(): Promise<Note[]> {
-  const allNotes = await getNotes();
-  return SubNoteUtils.getParentNotesFromArray(allNotes);
+export async function deleteNoteAndChildren(noteId: string): Promise<void> {
+  try {
+    const notes = await getNotes();
+    const noteIdsToDelete = [noteId];
+    
+    // Get all descendants recursively
+    const getDescendantIds = (parentId: string): string[] => {
+      const children = notes.filter(n => n.parentId === parentId);
+      const descendantIds: string[] = [];
+      
+      for (const child of children) {
+        descendantIds.push(child.id);
+        descendantIds.push(...getDescendantIds(child.id));
+      }
+      
+      return descendantIds;
+    };
+    
+    noteIdsToDelete.push(...getDescendantIds(noteId));
+    
+    // Delete all notes and children
+    const remainingNotes = notes.filter(note => !noteIdsToDelete.includes(note.id));
+    await saveNotes(remainingNotes);
+    
+    // Invalidate cache for performance optimizer
+    const optimizer = HierarchyPerformanceOptimizer.getInstance();
+    const deletedNote = notes.find(n => n.id === noteId);
+    if (deletedNote?.parentId) {
+      optimizer.invalidateCache(deletedNote.parentId, remainingNotes);
+    }
+    
+  } catch (error) {
+    throw error;
+  }
 }
 
-/**
- * Get all sub-notes for a specific parent
- */
-export async function getSubNotes(parentId: string): Promise<Note[]> {
-  const allNotes = await getNotes();
-  return SubNoteUtils.getSubNotesFromArray(parentId, allNotes);
-}
-
-/**
- * Get count of sub-notes for a parent
- * Used for badge display
- */
-export async function getSubNoteCount(parentId: string): Promise<number> {
-  const allNotes = await getNotes();
-  return SubNoteUtils.getSubNoteCountFromArray(parentId, allNotes);
-}
-
-/**
- * Get a note by ID
- */
-export async function getNoteById(id: string): Promise<Note | null> {
-  const notes = await getNotes();
-  return notes.find(note => note.id === id) || null;
-}
-
-/**
- * Create a new sub-note under a parent with comprehensive validation
- * Now supports multi-level hierarchies with safety checks
- */
-export async function createSubNote(parentId: string, noteData: Partial<Note>): Promise<Note> {
-  const startTime = Date.now();
-  console.log('[Storage] 🆕 CREATING SUB-NOTE - Enhanced validation:', {
+// Enhanced sub-note creation with better validation and error handling
+export async function createSubNote(
+  title: string,
+  content: string,
+  parentId: string,
+  userId?: string
+): Promise<string> {
+  logger.dev('[Storage] 🆕 CREATING SUB-NOTE - Enhanced validation:', {
+    title,
+    contentLength: content.length,
     parentId,
-    hasTitle: !!noteData.title,
-    hasContent: !!noteData.content,
-    timestamp: new Date().toISOString(),
+    userId,
+    timestamp: new Date().toISOString()
   });
 
   try {
-    // Load all notes for validation
     const allNotes = await getNotes();
     
-    // Validate parent exists
-    const parentNote = allNotes.find(note => note.id === parentId);
-    if (!parentNote) {
-      const error = new Error('Parent note not found');
-      console.error('[Storage] ❌ Parent validation failed:', { parentId, error: error.message });
+    // Enhanced parent validation
+    const parent = allNotes.find(note => note.id === parentId);
+    if (!parent) {
+      const error = new Error(`Parent note with ID ${parentId} not found`);
+      logger.error('[Storage] ❌ Parent validation failed:', { parentId, error: error.message });
       throw error;
     }
-
-    console.log('[Storage] ✅ Parent note found:', {
-      parentId: parentNote.id,
-      parentTitle: parentNote.title || 'Untitled',
-      currentDepth: SubNoteUtils.getNoteDepth(parentNote, allNotes),
+    
+    logger.dev('[Storage] ✅ Parent note found:', {
+      parentTitle: parent.title,
+      parentId: parent.id,
+      parentHasChildren: allNotes.some(n => n.parentId === parentId)
     });
 
-    // Enhanced validation using SubNoteUtils
+    // Comprehensive validation using SubNoteUtils
     const validation = SubNoteUtils.canCreateSubNote(parentId, allNotes);
     
     if (!validation.isValid) {
-      const error = new Error(`Sub-note creation blocked: ${validation.reason}`);
-      console.error('[Storage] ❌ VALIDATION FAILED:', {
+      logger.error('[Storage] ❌ VALIDATION FAILED:', {
         parentId,
+        title,
         reason: validation.reason,
-        currentDepth: validation.currentDepth,
-        maxDepthAllowed: validation.maxDepthAllowed,
-        childrenCount: validation.childrenCount,
-        wouldExceedDepth: validation.wouldExceedDepth,
-        wouldExceedChildren: validation.wouldExceedChildren,
-      });
-      throw error;
-    }
-
-    // Log validation warnings (but allow creation)
-    if (validation.warnings && validation.warnings.length > 0) {
-      console.warn('[Storage] ⚠️ VALIDATION WARNINGS:', {
-        parentId,
         warnings: validation.warnings,
-        suggestions: validation.suggestions,
+        suggestions: validation.suggestions
+      });
+      throw new Error(`Sub-note creation failed: ${validation.reason}`);
+    }
+    
+    if (validation.warnings && validation.warnings.length > 0) {
+      logger.warn('[Storage] ⚠️ VALIDATION WARNINGS:', {
+        parentId,
+        title,
+        warnings: validation.warnings,
+        suggestions: validation.suggestions
       });
     }
 
-    // Check for circular reference risk
+    // Additional circular reference check
     if (SubNoteUtils.hasCircularReference(parentId, allNotes)) {
-      const error = new Error('Circular reference detected in parent hierarchy');
-      console.error('[Storage] ❌ CIRCULAR REFERENCE DETECTED:', { parentId });
-      throw error;
+      logger.error('[Storage] ❌ CIRCULAR REFERENCE DETECTED:', { parentId });
+      throw new Error('Circular reference detected in hierarchy');
     }
 
     // Create the sub-note
-    const newSubNote: Note = {
+    const subNote: Note = {
       id: uuid(),
-      title: noteData.title || '',
-      content: noteData.content || '',
+      title: title.trim(),
+      content: content.trim(),
       createdAt: new Date().toISOString(),
-      tags: noteData.tags || [],
-      imageUris: noteData.imageUris || [],
-      parentId, // Set parent relationship - supports multi-level now
-      reminders: noteData.reminders || [],
-      scheduledDate: noteData.scheduledDate,
+      parentId: parentId,
+      tags: [], // Initialize empty tags
+      imageUris: [] // Initialize empty array
     };
 
-    // Add to notes array and save
-    allNotes.push(newSubNote);
-    await saveNotes(allNotes);
-
-    // Log hierarchy statistics after creation
-    const hierarchyStats = SubNoteUtils.getHierarchyStats(parentId, allNotes);
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-
-    console.log('[Storage] ✅ SUB-NOTE CREATED SUCCESSFULLY:', {
-      subNoteId: newSubNote.id,
-      subNoteTitle: newSubNote.title || 'Untitled',
-      parentId,
-      hierarchyStats: {
-        parentDepth: hierarchyStats.depth,
-        totalDescendants: hierarchyStats.descendantCount,
-        performance: hierarchyStats.performance,
-        childrenCount: hierarchyStats.childrenCount,
-      },
-      validation: {
-        warningsCount: validation.warnings?.length || 0,
-        suggestionsCount: validation.suggestions?.length || 0,
-      },
-      duration: `${duration}ms`,
+    // Add to storage
+    const savedNoteId = await addNote(subNote);
+    
+    // Invalidate performance cache for parent
+    const optimizer = HierarchyPerformanceOptimizer.getInstance();
+    optimizer.invalidateCache(parentId, [...allNotes, subNote]);
+    
+    logger.dev('[Storage] ✅ SUB-NOTE CREATED SUCCESSFULLY:', {
+      subNoteId: savedNoteId,
+      title: subNote.title,
+      parentId: parentId,
+      hierarchyDepth: SubNoteUtils.getNoteDepth(subNote, [...allNotes, subNote]),
+      descendantCount: SubNoteUtils.getHierarchyStats(parentId, [...allNotes, subNote]).descendantCount,
+      timestamp: new Date().toISOString()
     });
 
-    return newSubNote;
+    return savedNoteId;
 
   } catch (error) {
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-    
-    console.error('[Storage] ❌ SUB-NOTE CREATION FAILED:', {
+    logger.error('[Storage] ❌ SUB-NOTE CREATION FAILED:', {
       parentId,
+      title,
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      duration: `${duration}ms`,
-      timestamp: new Date().toISOString(),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
     });
-    
-    throw error; // Re-throw to maintain error handling upstream
+    throw error;
   }
-}
-
-/**
- * Delete a sub-note and all its descendants
- */
-export async function deleteSubNote(subNoteId: string): Promise<void> {
-  const allNotes = await getNotes();
-  const subNote = allNotes.find(note => note.id === subNoteId);
-  
-  if (!subNote || !subNote.parentId) {
-    throw new Error('Sub-note not found');
-  }
-  
-  // Get all descendants that need to be deleted too
-  const descendants = SubNoteUtils.getAllDescendants(subNoteId, allNotes);
-  const idsToDelete = [subNoteId, ...descendants.map(d => d.id)];
-  
-  const updatedNotes = allNotes.filter(note => !idsToDelete.includes(note.id));
-  await saveNotes(updatedNotes);
-}
-
-/**
- * Convert a regular note to a sub-note
- */
-export async function convertToSubNote(noteId: string, parentId: string): Promise<void> {
-  const allNotes = await getNotes();
-  const noteIndex = allNotes.findIndex(note => note.id === noteId);
-  const parentNote = allNotes.find(note => note.id === parentId);
-  
-  if (noteIndex === -1) {
-    throw new Error('Note not found');
-  }
-  if (!parentNote) {
-    throw new Error('Parent note not found');
-  }
-  if (allNotes[noteIndex].parentId) {
-    throw new Error('Note is already a sub-note');
-  }
-  
-  // Validate no cycles would be created
-  if (!SubNoteUtils.canMakeSubNote(noteId, parentId, allNotes)) {
-    throw new Error('Cannot create sub-note: would create circular dependency');
-  }
-  
-  allNotes[noteIndex].parentId = parentId;
-  await saveNotes(allNotes);
-}
-
-/**
- * Get all notes related to a parent (parent + all its sub-notes)
- */
-export async function getNoteFamily(parentId: string): Promise<{ parent: Note; subNotes: Note[] }> {
-  const allNotes = await getNotes();
-  const parent = allNotes.find(note => note.id === parentId && !note.parentId);
-  const subNotes = SubNoteUtils.getSubNotesFromArray(parentId, allNotes);
-  
-  if (!parent) {
-    throw new Error('Parent note not found');
-  }
-  
-  return { parent, subNotes };
 }

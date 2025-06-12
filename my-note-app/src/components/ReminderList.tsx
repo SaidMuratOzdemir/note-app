@@ -33,6 +33,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Reminder, ReminderFrequency } from '../types/Reminder';
 import { ReminderService } from '../services/reminderService';
 import { Colors, Typography, Layout } from '../theme';
+import { logger } from '../utils/logger';
 
 interface ReminderListProps {
   /** Note ID to show reminders for */
@@ -100,7 +101,7 @@ export const ReminderList: React.FC<ReminderListProps> = ({
       setReminders(noteReminders);
       onRemindersChange?.(noteReminders);
     } catch (error) {
-      console.error('Failed to load reminders:', error);
+      logger.error('Failed to load reminders:', error);
     } finally {
       setLoading(false);
     }
@@ -193,7 +194,7 @@ export const ReminderList: React.FC<ReminderListProps> = ({
   const handleCompleteReminder = useCallback(async (reminderId: string) => {
     // Prevent duplicate operations
     if (processingIds.has(reminderId)) {
-      console.log('[ReminderList] ⚠️ Operation already in progress for reminder:', reminderId);
+      logger.warn('[ReminderList] ⚠️ Operation already in progress for reminder:', reminderId);
       return;
     }
 
@@ -205,9 +206,9 @@ export const ReminderList: React.FC<ReminderListProps> = ({
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (!errorMessage.includes('not found')) {
         Alert.alert('Error', 'Failed to complete reminder');
-        console.error('Complete reminder error:', error);
+        logger.error('Complete reminder error:', error);
       } else {
-        console.log('[ReminderList] ℹ️ Reminder already processed (race condition handled gracefully)');
+        logger.dev('[ReminderList] ℹ️ Reminder already processed (race condition handled gracefully)');
       }
     } finally {
       setProcessingIds(prev => {
@@ -233,7 +234,7 @@ export const ReminderList: React.FC<ReminderListProps> = ({
           onPress: async () => {
             // Prevent duplicate operations
             if (processingIds.has(reminder.id)) {
-              console.log('[ReminderList] ⚠️ Delete operation already in progress for reminder:', reminder.id);
+              logger.warn('[ReminderList] ⚠️ Delete operation already in progress for reminder:', reminder.id);
               return;
             }
 
@@ -242,7 +243,7 @@ export const ReminderList: React.FC<ReminderListProps> = ({
               await reminderService.deleteReminder(reminder.id);
             } catch (error) {
               Alert.alert('Error', 'Failed to delete reminder');
-              console.error('Delete reminder error:', error);
+              logger.error('Delete reminder error:', error);
             } finally {
               setProcessingIds(prev => {
                 const newSet = new Set(prev);

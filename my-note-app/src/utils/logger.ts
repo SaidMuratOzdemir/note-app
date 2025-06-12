@@ -20,4 +20,9 @@ export const logger = {
       console.info(...args);
     }
   },
+  dev: (...args: any[]) => {
+    if (isDevelopment) {
+      console.log('[DEV]', ...args);
+    }
+  },
 };

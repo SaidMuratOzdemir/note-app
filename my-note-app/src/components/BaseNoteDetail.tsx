@@ -10,6 +10,7 @@ import { ReminderForm } from './ReminderForm';
 import { ReminderList } from './ReminderList';
 import { Colors } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
+import { logger } from '../utils/logger';
 
 type BaseNoteDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
 
@@ -190,12 +191,12 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
           visible={showReminderForm}
           editingReminder={editingReminder}
           onSave={(reminder) => {
-            console.log('[BaseNoteDetail] Reminder saved:', reminder);
+            logger.dev('[BaseNoteDetail] Reminder saved:', reminder);
             setShowReminderForm(false);
             setEditingReminder(undefined);
           }}
           onCancel={() => {
-            console.log('[BaseNoteDetail] Reminder form cancelled');
+            logger.dev('[BaseNoteDetail] Reminder form cancelled');
             setShowReminderForm(false);
             setEditingReminder(undefined);
           }}
