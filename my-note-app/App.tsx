@@ -30,6 +30,24 @@ export default function App() {
         const reminderService = ReminderService.getInstance();
         await reminderService.initialize();
         
+        // Cleanup any orphaned temp reminders from previous app sessions
+        // (reminders with temp IDs that were never converted to real notes)
+        try {
+          const allReminders = await reminderService.getReminders();
+          const tempReminders = allReminders.filter(r => 
+            r.noteId.startsWith('reminder_') || // Old temp format
+            r.noteId.includes('temp_') ||       // Explicit temp format
+            r.noteId.length === 36              // UUID format (could be temp)
+          );
+          
+          if (tempReminders.length > 0) {
+            console.log('[App] 🧹 Found potential orphaned temp reminders:', tempReminders.length);
+            // We'll implement a more sophisticated check later
+          }
+        } catch (error) {
+          console.warn('[App] Could not check for orphaned reminders:', error);
+        }
+        
         console.log('[App] Services initialized successfully');
       } catch (error) {
         console.error('[App] Failed to initialize services:', error);

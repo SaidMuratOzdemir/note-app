@@ -6,6 +6,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { addNote, createSubNote, getNotes } from '../services/storage';
 import { TagService } from '../services/tagService';
+import { ReminderService } from '../services/reminderService';
 import { Note } from '../types/Note';
 import { ReminderForm } from '../components/ReminderForm';
 import { v4 as uuid } from 'uuid';
@@ -24,6 +25,8 @@ export const NewNoteScreen: React.FC = () => {
   const [parentNote, setParentNote] = useState<Note | null>(null);
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [savedNote, setSavedNote] = useState<Note | null>(null);
+  const [tempNoteId] = useState(() => uuid()); // Geçici ID, component mount'ta oluştur
+  const [hasUnsavedReminders, setHasUnsavedReminders] = useState(false); // Track if reminders were created
   
   const navigation = useNavigation<NewNoteScreenNavigationProp>();
   const route = useRoute<NewNoteScreenRouteProp>();
@@ -31,6 +34,60 @@ export const NewNoteScreen: React.FC = () => {
   const parentNoteId = route.params?.parentNoteId;
   
   const isSubNote = !!parentNoteId;
+
+  // Geçici note objesi oluştur (reminder formu için)
+  const createTempNote = useCallback((): Note => {
+    const now = new Date();
+    let noteDateTime: Date;
+
+    if (selectedDate) {
+      const timePart = now.toTimeString().split(' ')[0];
+      noteDateTime = new Date(`${selectedDate}T${timePart}`);
+    } else {
+      noteDateTime = now;
+    }
+
+    const parsedTags = tags
+      .split(/[\s,#]+/)
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0 && tag !== '#');
+
+    return {
+      id: tempNoteId, // Geçici ID kullan
+      content: content.trim(),
+      createdAt: noteDateTime.toISOString(),
+      title: title.trim() || undefined,
+      tags: parsedTags.length > 0 ? parsedTags : undefined,
+      imageUris: imageUris.length > 0 ? imageUris : undefined,
+    };
+  }, [tempNoteId, content, title, tags, imageUris, selectedDate]);
+
+  // Cleanup temp reminders when component unmounts
+  useEffect(() => {
+    return () => {
+      // Only cleanup if note wasn't saved (meaning we have unsaved reminders)
+      if (hasUnsavedReminders && !savedNote) {
+        console.log('[NewNoteScreen] 🧹 Cleaning up temp reminders on unmount:', {
+          tempNoteId,
+          hasUnsavedReminders,
+          savedNote: !!savedNote
+        });
+        
+        // Async cleanup - don't await since component is unmounting
+        const cleanupReminders = async () => {
+          try {
+            const reminderService = ReminderService.getInstance();
+            await reminderService.deleteRemindersForNote(tempNoteId);
+            console.log('[NewNoteScreen] ✅ Temp reminders cleaned up successfully');
+          } catch (error) {
+            console.error('[NewNoteScreen] ❌ Error cleaning up temp reminders:', error);
+          }
+        };
+        
+        cleanupReminders();
+      }
+    };
+  }, [tempNoteId, hasUnsavedReminders, savedNote]);
 
   // Load parent note if creating a sub-note
   useEffect(() => {
@@ -48,6 +105,33 @@ export const NewNoteScreen: React.FC = () => {
     
     loadParentNote();
   }, [parentNoteId]);
+
+  // Handle navigation events for cleanup
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // If note is already saved, allow navigation
+      if (savedNote || !hasUnsavedReminders) {
+        return;
+      }
+
+      // We have unsaved reminders, cleanup before leaving
+      console.log('[NewNoteScreen] 🚨 Navigation detected with unsaved reminders, cleaning up...');
+      
+      const cleanupAndNavigate = async () => {
+        try {
+          const reminderService = ReminderService.getInstance();
+          await reminderService.deleteRemindersForNote(tempNoteId);
+          console.log('[NewNoteScreen] ✅ Cleaned up temp reminders before navigation');
+        } catch (error) {
+          console.error('[NewNoteScreen] ❌ Error cleaning up before navigation:', error);
+        }
+      };
+      
+      cleanupAndNavigate();
+    });
+
+    return unsubscribe;
+  }, [navigation, savedNote, hasUnsavedReminders, tempNoteId]);
 
   const save = useCallback(async () => {
     if (!content.trim()) {
@@ -83,11 +167,14 @@ export const NewNoteScreen: React.FC = () => {
     
     try {
       let savedNoteId: string;
+      let createdNote: Note;
       
       if (isSubNote && parentNoteId) {
         // Create sub-note
         const createdSubNote = await createSubNote(parentNoteId, noteData);
         savedNoteId = createdSubNote.id;
+        createdNote = createdSubNote;
+        setSavedNote(createdSubNote);
         console.log('[NewNoteScreen] ✅ Created sub-note:', savedNoteId);
       } else {
         // Create regular note
@@ -101,8 +188,22 @@ export const NewNoteScreen: React.FC = () => {
         };
         await addNote(note);
         savedNoteId = note.id;
+        createdNote = note;
         setSavedNote(note);
         console.log('[NewNoteScreen] ✅ Created note:', savedNoteId);
+      }
+
+      // Update reminder noteIds if any reminders were created for temp note
+      try {
+        const reminderService = ReminderService.getInstance();
+        await reminderService.updateReminderNoteId(tempNoteId, savedNoteId);
+        setHasUnsavedReminders(false); // Mark reminders as saved
+        console.log('[NewNoteScreen] ✅ Updated reminder noteIds:', {
+          tempNoteId,
+          realNoteId: savedNoteId
+        });
+      } catch (reminderError) {
+        console.warn('[NewNoteScreen] ⚠️ Error updating reminder noteIds (continuing):', reminderError);
       }
       
       // Update tag cache if note has tags
@@ -116,7 +217,7 @@ export const NewNoteScreen: React.FC = () => {
       console.error('[NewNoteScreen] ❌ Error saving note:', error);
       Alert.alert('Hata', 'Not kaydedilirken bir hata oluştu');
     }
-  }, [title, content, tags, imageUris, selectedDate, navigation, isSubNote, parentNoteId]);
+  }, [title, content, tags, imageUris, selectedDate, navigation, isSubNote, parentNoteId, tempNoteId, hasUnsavedReminders]);
 
   useEffect(() => {
     setupHeaderButtons();
@@ -269,14 +370,15 @@ export const NewNoteScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Reminder Form Modal - only show if note has content and savedNote exists */}
-      {showReminderForm && savedNote && (
+      {/* Reminder Form Modal - çalışır eğer content varsa */}
+      {showReminderForm && content.trim() && (
         <ReminderForm
-          note={savedNote}
+          note={savedNote || createTempNote()} // Kaydedilmiş not varsa onu kullan, yoksa geçici not oluştur
           visible={showReminderForm}
           editingReminder={undefined}
           onSave={(reminder) => {
             console.log('[NewNoteScreen] ✅ Reminder created:', reminder);
+            setHasUnsavedReminders(true); // Mark that we have unsaved reminders
             setShowReminderForm(false);
             Alert.alert('Başarılı', 'Hatırlatıcı oluşturuldu!', [
               { text: 'Tamam', onPress: () => navigation.goBack() }
@@ -285,7 +387,6 @@ export const NewNoteScreen: React.FC = () => {
           onCancel={() => {
             console.log('[NewNoteScreen] ❌ Reminder cancelled');
             setShowReminderForm(false);
-            navigation.goBack();
           }}
         />
       )}

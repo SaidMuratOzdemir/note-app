@@ -707,6 +707,222 @@ export class ReminderService {
     return result;
   }
 
+  /**
+   * Delete all reminders for a specific noteId (cleanup for temp/draft notes)
+   */
+  async deleteRemindersForNote(noteId: string): Promise<void> {
+    console.log('[ReminderService] 🗑️ Deleting all reminders for noteId:', {
+      noteId,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      await this.ensureInitialized();
+      
+      const remindersToDelete = Array.from(this.reminders.values())
+        .filter(reminder => reminder.noteId === noteId);
+
+      if (remindersToDelete.length === 0) {
+        console.log('[ReminderService] ℹ️ No reminders found for noteId cleanup:', {
+          noteId,
+          totalReminders: this.reminders.size
+        });
+        return;
+      }
+
+      console.log('[ReminderService] 📋 Found reminders to delete:', {
+        count: remindersToDelete.length,
+        reminderIds: remindersToDelete.map(r => r.id),
+        noteId,
+        reason: 'Note cleanup (likely draft/temp note)'
+      });
+
+      // Cancel notifications and remove from memory
+      for (const reminder of remindersToDelete) {
+        try {
+          // Cancel notification if exists
+          if (reminder.notificationId) {
+            await this.cancelNotification(reminder.id);
+          }
+          
+          // Remove from memory
+          this.reminders.delete(reminder.id);
+          
+          console.log('[ReminderService] ✅ Deleted reminder:', {
+            reminderId: reminder.id,
+            reminderTitle: reminder.title,
+            hadNotification: !!reminder.notificationId
+          });
+        } catch (error) {
+          console.error('[ReminderService] ⚠️ Error deleting individual reminder (continuing):', {
+            reminderId: reminder.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      // Save changes
+      await this.debouncedSave();
+      this.notifyListeners();
+      this.invalidateAnalyticsCache();
+
+      console.log('[ReminderService] ✅ All reminders deleted for noteId:', {
+        deletedCount: remindersToDelete.length,
+        noteId,
+        remainingReminders: this.reminders.size
+      });
+
+    } catch (error) {
+      console.error('[ReminderService] ❌ Failed to delete reminders for noteId:', {
+        noteId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all reminders for a specific noteId (cleanup for temp/draft notes)
+   */
+  async deleteRemindersForNote(noteId: string): Promise<void> {
+    console.log('[ReminderService] 🗑️ Deleting all reminders for noteId:', {
+      noteId,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      await this.ensureInitialized();
+      
+      const remindersToDelete = Array.from(this.reminders.values())
+        .filter(reminder => reminder.noteId === noteId);
+
+      if (remindersToDelete.length === 0) {
+        console.log('[ReminderService] ℹ️ No reminders found for noteId cleanup:', {
+          noteId,
+          totalReminders: this.reminders.size
+        });
+        return;
+      }
+
+      console.log('[ReminderService] 📋 Found reminders to delete:', {
+        count: remindersToDelete.length,
+        reminderIds: remindersToDelete.map(r => r.id),
+        noteId,
+        reason: 'Note cleanup (likely draft/temp note)'
+      });
+
+      // Cancel notifications and remove from memory
+      for (const reminder of remindersToDelete) {
+        try {
+          // Cancel notification if exists
+          if (reminder.notificationId) {
+            await this.cancelNotification(reminder.id);
+          }
+          
+          // Remove from memory
+          this.reminders.delete(reminder.id);
+          
+          console.log('[ReminderService] ✅ Deleted reminder:', {
+            reminderId: reminder.id,
+            reminderTitle: reminder.title,
+            hadNotification: !!reminder.notificationId
+          });
+        } catch (error) {
+          console.error('[ReminderService] ⚠️ Error deleting individual reminder (continuing):', {
+            reminderId: reminder.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      // Save changes
+      await this.debouncedSave();
+      this.notifyListeners();
+      this.invalidateAnalyticsCache();
+
+      console.log('[ReminderService] ✅ All reminders deleted for noteId:', {
+        deletedCount: remindersToDelete.length,
+        noteId,
+        remainingReminders: this.reminders.size
+      });
+
+    } catch (error) {
+      console.error('[ReminderService] ❌ Failed to delete reminders for noteId:', {
+        noteId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update reminder's noteId (for when temp note becomes real note)
+   */
+  async updateReminderNoteId(oldNoteId: string, newNoteId: string): Promise<void> {
+    console.log('[ReminderService] 🔄 Updating reminder noteId:', {
+      oldNoteId,
+      newNoteId,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      await this.ensureInitialized();
+      
+      const remindersToUpdate = Array.from(this.reminders.values())
+        .filter(reminder => reminder.noteId === oldNoteId);
+
+      if (remindersToUpdate.length === 0) {
+        console.log('[ReminderService] ℹ️ No reminders found for noteId update:', {
+          oldNoteId,
+          newNoteId,
+          totalReminders: this.reminders.size
+        });
+        return;
+      }
+
+      console.log('[ReminderService] 📋 Found reminders to update:', {
+        count: remindersToUpdate.length,
+        reminderIds: remindersToUpdate.map(r => r.id),
+        oldNoteId,
+        newNoteId
+      });
+
+      // Update each reminder's noteId
+      for (const reminder of remindersToUpdate) {
+        const updatedReminder = { ...reminder, noteId: newNoteId };
+        this.reminders.set(reminder.id, updatedReminder);
+        
+        console.log('[ReminderService] ✅ Updated reminder noteId:', {
+          reminderId: reminder.id,
+          reminderTitle: reminder.title,
+          oldNoteId: reminder.noteId,
+          newNoteId: updatedReminder.noteId
+        });
+      }
+
+      // Save changes
+      await this.debouncedSave();
+      this.notifyListeners();
+
+      console.log('[ReminderService] ✅ All reminder noteIds updated successfully:', {
+        updatedCount: remindersToUpdate.length,
+        oldNoteId,
+        newNoteId
+      });
+
+    } catch (error) {
+      console.error('[ReminderService] ❌ Failed to update reminder noteIds:', {
+        oldNoteId,
+        newNoteId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      throw error;
+    }
+  }
+
   // ==========================================
   // SMART FEATURES
   // ==========================================
