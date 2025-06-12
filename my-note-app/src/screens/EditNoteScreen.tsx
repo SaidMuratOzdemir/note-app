@@ -5,10 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Note } from '../types/Note';
-import { Reminder } from '../types/Reminder';
 import { getNotes, updateNote } from '../services/storage';
 import { TagService } from '../services/tagService';
-import { ReminderService } from '../services/reminderService';
 import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 
@@ -21,11 +19,9 @@ export const EditNoteScreen: React.FC = () => {
   const [tags, setTags] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [originalNote, setOriginalNote] = useState<Note | null>(null);
-  const [showReminderForm, setShowReminderForm] = useState(false);
   
   const navigation = useNavigation<EditNoteScreenNavigationProp>();
   const route = useRoute<EditNoteScreenRouteProp>();
-  const reminderService = ReminderService.getInstance();
 
   const loadNote = async () => {
     const notes = await getNotes();
@@ -77,17 +73,9 @@ export const EditNoteScreen: React.FC = () => {
   const setupHeaderButtons = () => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity 
-            onPress={() => setShowReminderForm(true)} 
-            style={[styles.headerButton, { marginRight: 8 }]}
-          >
-            <Text style={styles.headerButtonText}>🔔</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={save} style={styles.headerButton}>
-            <Text style={styles.headerButtonText}>Kaydet</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={save} style={styles.headerButton}>
+          <Text style={styles.headerButtonText}>Kaydet</Text>
+        </TouchableOpacity>
       ),
     });
   };
@@ -189,15 +177,6 @@ export const EditNoteScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Simple Reminder Indicator */}
-        {originalNote && (
-          <View style={{ marginTop: 16, padding: 12, backgroundColor: Colors.primaryPastels[1], borderRadius: 8 }}>
-            <Text style={{ fontSize: 14, color: Colors.accent.darkBlue }}>
-              📝 Hatırlatıcı ayarlamak için yukarıdaki 🔔 butonuna dokunun
-            </Text>
-          </View>
-        )}
       </View>
     </ScrollView>
   );
