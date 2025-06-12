@@ -14,7 +14,7 @@ import AllTagsScreen from '../screens/AllTagsScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  NewNote: { selectedDate?: string } | undefined;
+  NewNote: { selectedDate?: string; parentNoteId?: string } | undefined;
   NoteDetail: { note: any; focusSubNotes?: boolean };
   Detail: { id: string }; // Legacy support for existing code
   EditNote: { id: string };

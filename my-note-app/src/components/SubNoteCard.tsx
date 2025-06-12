@@ -57,42 +57,45 @@ export const SubNoteCard: React.FC<SubNoteCardProps> = ({
         </Text>
       )}
       
-      {/* Content with limited lines when images present */}
+      {/* Content with adjusted lines based on media */}
       <Text 
         style={styles.content} 
-        numberOfLines={hasImages ? 2 : 3}
+        numberOfLines={hasImages ? 1 : 2}
       >
         {note.content}
       </Text>
       
-      {/* Images preview (if any) */}
+      {/* Images preview (if any) - show more images */}
       {hasImages && (
         <View style={styles.imagesContainer}>
-          <Image 
-            source={{ uri: note.imageUris![0] }} 
-            style={styles.previewImage}
-            contentFit="cover"
-          />
-          {note.imageUris!.length > 1 && (
+          {note.imageUris!.slice(0, 2).map((uri, index) => (
+            <Image 
+              key={index}
+              source={{ uri }} 
+              style={styles.previewImage}
+              contentFit="cover"
+            />
+          ))}
+          {note.imageUris!.length > 2 && (
             <View style={styles.moreImagesIndicator}>
               <Text style={styles.moreImagesText}>
-                +{note.imageUris!.length - 1}
+                +{note.imageUris!.length - 2}
               </Text>
             </View>
           )}
         </View>
       )}
       
-      {/* Tags (simplified for sub-notes) */}
+      {/* Tags - show more tags */}
       {note.tags && note.tags.length > 0 && (
         <View style={styles.tagsContainer}>
-          {note.tags.slice(0, 2).map((tag, index) => (
+          {note.tags.slice(0, 4).map((tag, index) => (
             <View key={index} style={styles.tag}>
               <Text style={styles.tagText}>#{tag}</Text>
             </View>
           ))}
-          {note.tags.length > 2 && (
-            <Text style={styles.moreTagsText}>+{note.tags.length - 2}</Text>
+          {note.tags.length > 4 && (
+            <Text style={styles.moreTagsText}>+{note.tags.length - 4}</Text>
           )}
         </View>
       )}
@@ -160,44 +163,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 6,
   },
   previewImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 6,
+    width: 70,
+    height: 70,
+    borderRadius: 8,
   },
   moreImagesIndicator: {
-    marginLeft: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 70,
+    height: 70,
     backgroundColor: Colors.neutral.lightGray1,
-    borderRadius: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.neutral.lightGray2,
   },
   moreImagesText: {
     ...Typography.caption,
     fontWeight: '600',
+    color: Colors.textGray,
   },
   tagsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: Layout.tagGap,
+    gap: 6,
+    marginTop: 4,
   },
   tag: {
-    backgroundColor: Colors.accent.coral + '30',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginRight: 4,
-    marginBottom: 2,
+    backgroundColor: Colors.accent.coral + '25',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   tagText: {
     ...Typography.tag,
     color: Colors.accent.darkBlue,
+    fontSize: 11,
+    fontWeight: '500',
   },
   moreTagsText: {
     ...Typography.caption,
     color: Colors.textGray,
     fontWeight: '600',
+    fontSize: 11,
   },
 });

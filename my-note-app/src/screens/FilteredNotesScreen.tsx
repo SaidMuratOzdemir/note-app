@@ -79,7 +79,6 @@ const FilteredNotesScreen = ({ navigation, route }: any) => {
           break;
         case 'all':
         default:
-          // Show all notes
           break;
       }
       

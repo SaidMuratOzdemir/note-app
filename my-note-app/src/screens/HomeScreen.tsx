@@ -11,7 +11,7 @@ import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
 import { ReminderService } from '../services/reminderService';
 import { Colors, Typography, Layout } from '../theme';
-import { getTodayLocal } from '../utils/dateUtils';
+import { getTodayLocal, formatDateToLocal } from '../utils/dateUtils';
 import { SubNoteUtils } from '../utils/subNoteUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 
@@ -26,16 +26,26 @@ export const HomeScreen: React.FC = () => {
   const reminderService = ReminderService.getInstance();
 
   const loadNotes = async () => {
-    const all = await getNotes();
-    const todayString = getTodayLocal();
-    
-    // Filter to only show parent notes (no sub-notes) for today
-    const todaysParentNotes = all
-      .filter(n => n.createdAt.startsWith(todayString) && !n.parentId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    
-    setNotes(todaysParentNotes);
-    setAllNotes(all); // Keep all notes for sub-note counting
+    try {
+      const all = await getNotes();
+      const todayString = getTodayLocal();
+      
+      // Filter to only show parent notes (no sub-notes) for today
+      const todaysParentNotes = all
+        .filter(n => {
+          const noteDate = new Date(n.createdAt);
+          const noteDateLocal = formatDateToLocal(noteDate);
+          const isToday = noteDateLocal === todayString;
+          const isParent = !n.parentId;
+          return isToday && isParent;
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      setNotes(todaysParentNotes);
+      setAllNotes(all); // Keep all notes for sub-note counting
+    } catch (error) {
+      console.error('[HomeScreen] Error loading notes:', error);
+    }
   };
 
   const getSubNoteCount = (parentId: string): number => {
@@ -73,34 +83,19 @@ export const HomeScreen: React.FC = () => {
             onPress={() => navigation.navigate('Tags')} 
             style={styles.headerButton}
           >
-            <Ionicons 
-              name="pricetags-outline" 
-              size={24} 
-              color={Colors.neutral.darkGray}
-              fallback={<Text style={{ fontSize: 20 }}>🏷️</Text>}
-            />
+            <Text style={{ fontSize: 20 }}>🏷️</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Calendar')} 
             style={styles.headerButton}
           >
-            <Ionicons 
-              name="calendar-outline" 
-              size={24} 
-              color={Colors.neutral.darkGray}
-              fallback={<Text style={{ fontSize: 20 }}>📅</Text>}
-            />
+            <Text style={{ fontSize: 20 }}>📅</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Search')} 
             style={styles.headerButton}
           >
-            <Ionicons 
-              name="search-outline" 
-              size={24} 
-              color={Colors.neutral.darkGray}
-              fallback={<Text style={{ fontSize: 20 }}>🔍</Text>}
-            />
+            <Text style={{ fontSize: 20 }}>🔍</Text>
           </TouchableOpacity>
         </View>
       ),
@@ -117,15 +112,19 @@ export const HomeScreen: React.FC = () => {
     });
   };
 
+  const handleDatePress = () => {
+    navigation.navigate('Calendar');
+  };
+
   return (
     <View style={styles.container}>
       {/* Date Section */}
-      <View style={styles.dateSection}>
+      <TouchableOpacity style={styles.dateSection} onPress={handleDatePress}>
         <Text style={styles.dateText}>{formatDate()}</Text>
         {notes.length > 0 && (
           <Text style={styles.noteCount}>{notes.length} not</Text>
         )}
-      </View>
+      </TouchableOpacity>
       
       <ScrollView 
         style={styles.scrollView}
@@ -144,7 +143,7 @@ export const HomeScreen: React.FC = () => {
               key={note.id}
               note={note}
               index={index}
-              onPress={() => navigation.navigate('NoteDetail', { note })}
+              onPress={() => navigation.navigate('Detail', { id: note.id })}
               subNoteCount={getSubNoteCount(note.id)}
               onSubNotesPress={() => handleSubNotesBadgePress(note)}
             />

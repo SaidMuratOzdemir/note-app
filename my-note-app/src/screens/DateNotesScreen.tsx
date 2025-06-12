@@ -56,7 +56,11 @@ export const DateNotesScreen: React.FC = () => {
     const all = await getNotes();
     setAllNotes(all);
     const dateNotes = all
-      .filter(n => n.createdAt.startsWith(selectedDate))
+      .filter(n => {
+        const noteDate = new Date(n.createdAt);
+        const noteDateLocal = formatDateToLocal(noteDate);
+        return noteDateLocal === selectedDate;
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setNotes(dateNotes);
   };

@@ -24,7 +24,10 @@ export const CalendarScreen: React.FC = () => {
   const loadNoteDays = async () => {
     const notes = await getNotes();
     // Use timezone-safe date formatting for consistency
-    const days = new Set(notes.map(note => note.createdAt.split('T')[0]));
+    const days = new Set(notes.map(note => {
+      const noteDate = new Date(note.createdAt);
+      return formatDateToLocal(noteDate);
+    }));
     setNoteDays(days);
   };
 

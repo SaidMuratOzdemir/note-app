@@ -4,12 +4,13 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { addNote } from '../services/storage';
+import { addNote, createSubNote, getNotes } from '../services/storage';
 import { TagService } from '../services/tagService';
 import { Note } from '../types/Note';
 import { v4 as uuid } from 'uuid';
 import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
+import { formatDateToLocal, getTodayLocal } from '../utils/dateUtils';
 
 type NewNoteScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewNote'>;
 type NewNoteScreenRouteProp = RouteProp<RootStackParamList, 'NewNote'>;
@@ -19,9 +20,31 @@ export const NewNoteScreen: React.FC = () => {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
+  const [parentNote, setParentNote] = useState<Note | null>(null);
+  
   const navigation = useNavigation<NewNoteScreenNavigationProp>();
   const route = useRoute<NewNoteScreenRouteProp>();
   const selectedDate = route.params?.selectedDate;
+  const parentNoteId = route.params?.parentNoteId;
+  
+  const isSubNote = !!parentNoteId;
+
+  // Load parent note if creating a sub-note
+  useEffect(() => {
+    const loadParentNote = async () => {
+      if (parentNoteId) {
+        try {
+          const allNotes = await getNotes();
+          const parent = allNotes.find(note => note.id === parentNoteId);
+          setParentNote(parent || null);
+        } catch (error) {
+          console.error('Error loading parent note:', error);
+        }
+      }
+    };
+    
+    loadParentNote();
+  }, [parentNoteId]);
 
   const save = useCallback(async () => {
     if (!content.trim()) {
@@ -35,22 +58,42 @@ export const NewNoteScreen: React.FC = () => {
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0 && tag !== '#');
 
-    // Use selected date or current date
-    const noteDate = selectedDate 
-      ? new Date(selectedDate + 'T' + new Date().toISOString().split('T')[1])
-      : new Date();
+    // Create a consistent date handling approach
+    const now = new Date();
+    let noteDateTime: Date;
 
-    const note: Note = {
-      id: uuid(),
+    if (selectedDate) {
+      // If a specific date was selected (from calendar), use that date but with current time
+      const timePart = now.toTimeString().split(' ')[0]; // HH:mm:ss format
+      noteDateTime = new Date(`${selectedDate}T${timePart}`);
+    } else {
+      // For new notes created today, use current date/time
+      noteDateTime = now;
+    }
+
+    const noteData: Partial<Note> = {
       title: title.trim() || undefined,
       content: content.trim(),
-      createdAt: noteDate.toISOString(),
       tags: parsedTags.length > 0 ? parsedTags : undefined,
       imageUris: imageUris.length > 0 ? imageUris : undefined,
     };
     
     try {
-      await addNote(note);
+      if (isSubNote && parentNoteId) {
+        // Create sub-note
+        await createSubNote(parentNoteId, noteData);
+      } else {
+        // Create regular note
+        const note: Note = {
+          id: uuid(),
+          content: content.trim(),
+          createdAt: noteDateTime.toISOString(),
+          title: title.trim() || undefined,
+          tags: parsedTags.length > 0 ? parsedTags : undefined,
+          imageUris: imageUris.length > 0 ? imageUris : undefined,
+        };
+        await addNote(note);
+      }
       
       // Update tag cache if note has tags
       if (parsedTags.length > 0) {
@@ -63,11 +106,18 @@ export const NewNoteScreen: React.FC = () => {
       console.error('Error saving note:', error);
       Alert.alert('Hata', 'Not kaydedilirken bir hata oluştu');
     }
-  }, [title, content, tags, imageUris, selectedDate, navigation]);
+  }, [title, content, tags, imageUris, selectedDate, navigation, isSubNote, parentNoteId]);
 
   useEffect(() => {
     setupHeaderButtons();
-  }, [save, content]);
+    setupHeaderTitle();
+  }, [save, content, isSubNote, parentNote]);
+
+  const setupHeaderTitle = () => {
+    navigation.setOptions({
+      title: isSubNote ? `Alt Not Ekle` : 'Yeni Not',
+    });
+  };
 
   const setupHeaderButtons = () => {
     navigation.setOptions({
@@ -128,9 +178,19 @@ export const NewNoteScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.form}>
+        {/* Parent Note Context - only show for sub-notes */}
+        {isSubNote && parentNote && (
+          <View style={styles.parentContext}>
+            <Text style={styles.parentContextLabel}>Ana Not:</Text>
+            <Text style={styles.parentContextTitle} numberOfLines={2}>
+              {parentNote.title || 'Başlıksız Not'}
+            </Text>
+          </View>
+        )}
+
         <TextInput
           style={styles.titleInput}
-          placeholder="Başlık (isteğe bağlı)"
+          placeholder={isSubNote ? "Alt not başlığı (isteğe bağlı)" : "Başlık (isteğe bağlı)"}
           placeholderTextColor={Colors.neutral.darkGray}
           value={title}
           onChangeText={setTitle}
@@ -139,7 +199,7 @@ export const NewNoteScreen: React.FC = () => {
 
         <TextInput
           style={styles.contentInput}
-          placeholder="Bugün neler yaşandı?"
+          placeholder={isSubNote ? "Alt not içeriğini buraya yazın..." : "Bugün neler yaşandı?"}
           placeholderTextColor={Colors.neutral.darkGray}
           value={content}
           onChangeText={setContent}
@@ -191,6 +251,25 @@ const styles = StyleSheet.create({
   },
   form: {
     padding: 16,
+  },
+  parentContext: {
+    backgroundColor: Colors.accent.coral + '20',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent.coral,
+  },
+  parentContextLabel: {
+    fontSize: 12,
+    color: Colors.textGray,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  parentContextTitle: {
+    fontSize: 14,
+    color: Colors.accent.darkBlue,
+    fontWeight: '500',
   },
   titleInput: {
     fontSize: 18,

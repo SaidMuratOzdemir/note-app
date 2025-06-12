@@ -54,15 +54,11 @@ export class TagService {
    */
   async initialize(): Promise<void> {
     try {
-      console.log('[TagService] Initializing...');
       await this.loadCache();
       
       if (!this.cache || this.isCacheExpired()) {
-        console.log('[TagService] Cache missing or expired, recalculating...');
         await this.updateCache();
       }
-      
-      console.log('[TagService] Initialized successfully');
     } catch (error) {
       console.error('[TagService] Initialization failed:', error);
       await this.updateCache(); // Fallback to fresh calculation
@@ -93,7 +89,12 @@ export class TagService {
     
     // Filter notes by tag
     const filteredNotes = allNotes.filter((note: Note) => {
-      const hasTag = note.tags && note.tags.includes(filterOptions.tagName);
+      if (!note.tags || note.tags.length === 0) {
+        return false;
+      }
+      
+      const normalizedNoteTags = note.tags.map(tag => tag.toLowerCase());
+      const hasTag = normalizedNoteTags.includes(filterOptions.tagName);
       
       // Apply sub-note filter if specified
       if (!filterOptions.includeSubNotes && note.parentId) {
@@ -147,8 +148,6 @@ export class TagService {
   async scheduleUpdate(trigger: CacheUpdateTrigger): Promise<void> {
     if (!this.config.enableBackgroundUpdate) return;
     
-    console.log(`[TagService] Scheduling update for: ${trigger}`);
-    
     // Immediate updates for critical changes
     if (trigger === CacheUpdateTrigger.NOTE_DELETED || 
         trigger === CacheUpdateTrigger.NOTE_CREATED ||
@@ -174,11 +173,9 @@ export class TagService {
    */
   async updateCache(): Promise<void> {
     try {
-      console.log('[TagService] Starting cache update...');
       const analytics = await this.calculateTagAnalytics();
       await this.saveCache(analytics);
       this.cache = analytics;
-      console.log(`[TagService] Cache updated with ${analytics.topTags.length} tags, ${analytics.totalNotes} notes`);
     } catch (error) {
       console.error('[TagService] Cache update failed:', error);
       throw error;
@@ -194,7 +191,6 @@ export class TagService {
       CACHE_KEYS.LAST_UPDATE,
     ]);
     this.cache = null;
-    console.log('[TagService] Cache cleared');
   }
 
   /**
@@ -246,7 +242,6 @@ export class TagService {
       const cacheData = await AsyncStorage.getItem(CACHE_KEYS.TAG_ANALYTICS);
       if (cacheData) {
         this.cache = JSON.parse(cacheData);
-        console.log('[TagService] Cache loaded from storage');
       }
     } catch (error) {
       console.error('[TagService] Failed to load cache:', error);
