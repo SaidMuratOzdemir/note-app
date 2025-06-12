@@ -6,6 +6,8 @@ import { Image } from 'expo-image';
 import { Note } from '../types/Note';
 import { getNotes, deleteNote } from '../services/storage';
 import { TagPill } from './TagPill';
+import { ReminderForm } from './ReminderForm';
+import { ReminderList } from './ReminderList';
 import { Colors } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
 
@@ -26,6 +28,9 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
   renderFooterContent,
   showHeaderButtons = true,
 }) => {
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [editingReminder, setEditingReminder] = useState<any>(undefined);
+  
   const navigation = useNavigation<BaseNoteDetailNavigationProp>();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -41,6 +46,12 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            onPress={() => setShowReminderForm(true)} 
+            style={styles.headerButton}
+          >
+            <Text style={styles.reminderIcon}>🔔</Text>
+          </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('EditNote', { id: note.id })} 
             style={styles.headerButton}
@@ -155,9 +166,41 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
           </View>
         )}
 
+        {/* Reminders Section */}
+        <View style={styles.remindersSection}>
+          <ReminderList
+            noteId={note.id}
+            onEditReminder={(reminder) => {
+              setEditingReminder(reminder);
+              setShowReminderForm(true);
+            }}
+            maxVisible={3}
+            showCompleted={false}
+          />
+        </View>
+
         {/* Footer Content (Sub-notes section, etc.) */}
         {renderFooterContent && renderFooterContent()}
       </View>
+
+      {/* Reminder Form Modal */}
+      {showReminderForm && (
+        <ReminderForm
+          note={note}
+          visible={showReminderForm}
+          editingReminder={editingReminder}
+          onSave={(reminder) => {
+            console.log('[BaseNoteDetail] Reminder saved:', reminder);
+            setShowReminderForm(false);
+            setEditingReminder(undefined);
+          }}
+          onCancel={() => {
+            console.log('[BaseNoteDetail] Reminder form cancelled');
+            setShowReminderForm(false);
+            setEditingReminder(undefined);
+          }}
+        />
+      )}
     </ScrollView>
   );
 };
@@ -222,6 +265,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     flexWrap: 'wrap',
   },
+  remindersSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.neutral.lightGray2,
+  },
   headerButtons: {
     flexDirection: 'row',
     marginRight: 16,
@@ -231,6 +280,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   editIcon: {
+    fontSize: 20,
+  },
+  reminderIcon: {
     fontSize: 20,
   },
   deleteIcon: {
