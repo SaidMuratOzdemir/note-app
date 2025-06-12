@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
@@ -21,15 +21,23 @@ export const NoteDetailScreen: React.FC = () => {
   const isParentNote = note && !note.parentId;
   const isSubNote = note && !!note.parentId;
 
-  useEffect(() => {
-    loadNote();
-  }, []);
-
-  const loadNote = async () => {
+  const loadNote = useCallback(async () => {
     const all = await getNotes();
     const foundNote = all.find(n => n.id === route.params.id);
     setNote(foundNote || null);
-  };
+  }, [route.params.id]);
+
+  // Load note on mount
+  useEffect(() => {
+    loadNote();
+  }, [loadNote]);
+
+  // Reload note when screen comes into focus (e.g., after editing)
+  useFocusEffect(
+    useCallback(() => {
+      loadNote();
+    }, [loadNote])
+  );
 
   if (!note) {
     return (
