@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
@@ -20,18 +20,25 @@ export const ParentNoteDetailScreen: React.FC<ParentNoteDetailScreenProps> = ({ 
   const [subNotes, setSubNotes] = useState<Note[]>([]);
   const navigation = useNavigation<ParentNoteDetailNavigationProp>();
 
-  useEffect(() => {
-    loadSubNotes();
-  }, [note.id]);
-
-  const loadSubNotes = async () => {
+  const loadSubNotes = useCallback(async () => {
     try {
       const noteSubNotes = await getSubNotes(note.id);
       setSubNotes(noteSubNotes);
     } catch (error) {
       console.error('Error loading sub-notes:', error);
     }
-  };
+  }, [note.id]);
+
+  useEffect(() => {
+    loadSubNotes();
+  }, [loadSubNotes]);
+
+  // Reload sub-notes when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadSubNotes();
+    }, [loadSubNotes])
+  );
 
   const handleCreateSubNote = () => {
     navigation.navigate('NewNote', { parentNoteId: note.id });

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
 import { getNotes } from '../services/storage';
@@ -18,11 +18,7 @@ export const SubNoteDetailScreen: React.FC<SubNoteDetailScreenProps> = ({ note }
   const [parentNote, setParentNote] = useState<Note | null>(null);
   const navigation = useNavigation<SubNoteDetailNavigationProp>();
 
-  useEffect(() => {
-    loadParentNote();
-  }, [note.parentId]);
-
-  const loadParentNote = async () => {
+  const loadParentNote = useCallback(async () => {
     if (!note.parentId) return;
     try {
       const all = await getNotes();
@@ -31,7 +27,18 @@ export const SubNoteDetailScreen: React.FC<SubNoteDetailScreenProps> = ({ note }
     } catch (error) {
       console.error('Error loading parent note:', error);
     }
-  };
+  }, [note.parentId]);
+
+  useEffect(() => {
+    loadParentNote();
+  }, [loadParentNote]);
+
+  // Reload parent note when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadParentNote();
+    }, [loadParentNote])
+  );
 
   const renderHeaderContent = () => {
     if (!parentNote) return null;
