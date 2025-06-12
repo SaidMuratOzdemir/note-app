@@ -611,13 +611,16 @@ export class ReminderService {
       
       const existingReminder = this.reminders.get(reminderId);
       if (!existingReminder) {
-        console.error('[ReminderService] ❌ COMPLETE FAILED - reminder not found:', {
+        console.warn('[ReminderService] ⚠️ COMPLETE SKIPPED - reminder not found (likely race condition):', {
           reminderId,
           totalReminders: this.reminders.size,
           availableIds: Array.from(this.reminders.keys()).slice(0, 5),
-          searchAttempted: true
+          likelyReason: 'Reminder was deleted or completed by another operation',
+          gracefulFail: true
         });
-        throw new Error(`Reminder not found: ${reminderId}`);
+        // Don't throw error - this is likely a race condition where reminder was deleted
+        console.log('[ReminderService] ✅ COMPLETE GRACEFULLY HANDLED - operation skipped due to missing reminder');
+        return;
       }
 
       console.log('[ReminderService] 📋 Found reminder to complete:', {

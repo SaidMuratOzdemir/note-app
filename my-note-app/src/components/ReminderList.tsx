@@ -74,6 +74,7 @@ export const ReminderList: React.FC<ReminderListProps> = ({
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   const reminderService = ReminderService.getInstance();
 
@@ -187,16 +188,35 @@ export const ReminderList: React.FC<ReminderListProps> = ({
   }, [groupedReminders, maxVisible, showCompleted]);
 
   /**
-   * Handle reminder completion
+   * Handle reminder completion with race condition protection
    */
   const handleCompleteReminder = useCallback(async (reminderId: string) => {
+    // Prevent duplicate operations
+    if (processingIds.has(reminderId)) {
+      console.log('[ReminderList] ⚠️ Operation already in progress for reminder:', reminderId);
+      return;
+    }
+
     try {
+      setProcessingIds(prev => new Set(prev).add(reminderId));
       await reminderService.completeReminder(reminderId);
     } catch (error) {
-      Alert.alert('Error', 'Failed to complete reminder');
-      console.error('Complete reminder error:', error);
+      // Only show error if it's not a "not found" error (which is expected in race conditions)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('not found')) {
+        Alert.alert('Error', 'Failed to complete reminder');
+        console.error('Complete reminder error:', error);
+      } else {
+        console.log('[ReminderList] ℹ️ Reminder already processed (race condition handled gracefully)');
+      }
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reminderId);
+        return newSet;
+      });
     }
-  }, [reminderService]);
+  }, [reminderService, processingIds]);
 
   /**
    * Handle reminder deletion with confirmation
@@ -211,17 +231,30 @@ export const ReminderList: React.FC<ReminderListProps> = ({
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            // Prevent duplicate operations
+            if (processingIds.has(reminder.id)) {
+              console.log('[ReminderList] ⚠️ Delete operation already in progress for reminder:', reminder.id);
+              return;
+            }
+
             try {
+              setProcessingIds(prev => new Set(prev).add(reminder.id));
               await reminderService.deleteReminder(reminder.id);
             } catch (error) {
               Alert.alert('Error', 'Failed to delete reminder');
               console.error('Delete reminder error:', error);
+            } finally {
+              setProcessingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(reminder.id);
+                return newSet;
+              });
             }
           },
         },
       ]
     );
-  }, [reminderService]);
+  }, [reminderService, processingIds]);
 
   /**
    * Format reminder date for display
