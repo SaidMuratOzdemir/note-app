@@ -130,32 +130,124 @@ export async function getNoteById(id: string): Promise<Note | null> {
 }
 
 /**
- * Create a new sub-note under a parent
+ * Create a new sub-note under a parent with comprehensive validation
+ * Now supports multi-level hierarchies with safety checks
  */
 export async function createSubNote(parentId: string, noteData: Partial<Note>): Promise<Note> {
-  // Validate parent exists
-  const parentNote = await getNoteById(parentId);
-  if (!parentNote) {
-    throw new Error('Parent note not found');
+  const startTime = Date.now();
+  console.log('[Storage] 🆕 CREATING SUB-NOTE - Enhanced validation:', {
+    parentId,
+    hasTitle: !!noteData.title,
+    hasContent: !!noteData.content,
+    timestamp: new Date().toISOString(),
+  });
+
+  try {
+    // Load all notes for validation
+    const allNotes = await getNotes();
+    
+    // Validate parent exists
+    const parentNote = allNotes.find(note => note.id === parentId);
+    if (!parentNote) {
+      const error = new Error('Parent note not found');
+      console.error('[Storage] ❌ Parent validation failed:', { parentId, error: error.message });
+      throw error;
+    }
+
+    console.log('[Storage] ✅ Parent note found:', {
+      parentId: parentNote.id,
+      parentTitle: parentNote.title || 'Untitled',
+      currentDepth: SubNoteUtils.getNoteDepth(parentNote, allNotes),
+    });
+
+    // Enhanced validation using SubNoteUtils
+    const validation = SubNoteUtils.canCreateSubNote(parentId, allNotes);
+    
+    if (!validation.isValid) {
+      const error = new Error(`Sub-note creation blocked: ${validation.reason}`);
+      console.error('[Storage] ❌ VALIDATION FAILED:', {
+        parentId,
+        reason: validation.reason,
+        currentDepth: validation.currentDepth,
+        maxDepthAllowed: validation.maxDepthAllowed,
+        childrenCount: validation.childrenCount,
+        wouldExceedDepth: validation.wouldExceedDepth,
+        wouldExceedChildren: validation.wouldExceedChildren,
+      });
+      throw error;
+    }
+
+    // Log validation warnings (but allow creation)
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn('[Storage] ⚠️ VALIDATION WARNINGS:', {
+        parentId,
+        warnings: validation.warnings,
+        suggestions: validation.suggestions,
+      });
+    }
+
+    // Check for circular reference risk
+    if (SubNoteUtils.hasCircularReference(parentId, allNotes)) {
+      const error = new Error('Circular reference detected in parent hierarchy');
+      console.error('[Storage] ❌ CIRCULAR REFERENCE DETECTED:', { parentId });
+      throw error;
+    }
+
+    // Create the sub-note
+    const newSubNote: Note = {
+      id: uuid(),
+      title: noteData.title || '',
+      content: noteData.content || '',
+      createdAt: new Date().toISOString(),
+      tags: noteData.tags || [],
+      imageUris: noteData.imageUris || [],
+      parentId, // Set parent relationship - supports multi-level now
+      reminders: noteData.reminders || [],
+      scheduledDate: noteData.scheduledDate,
+    };
+
+    // Add to notes array and save
+    allNotes.push(newSubNote);
+    await saveNotes(allNotes);
+
+    // Log hierarchy statistics after creation
+    const hierarchyStats = SubNoteUtils.getHierarchyStats(parentId, allNotes);
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    console.log('[Storage] ✅ SUB-NOTE CREATED SUCCESSFULLY:', {
+      subNoteId: newSubNote.id,
+      subNoteTitle: newSubNote.title || 'Untitled',
+      parentId,
+      hierarchyStats: {
+        parentDepth: hierarchyStats.depth,
+        totalDescendants: hierarchyStats.descendantCount,
+        performance: hierarchyStats.performance,
+        childrenCount: hierarchyStats.childrenCount,
+      },
+      validation: {
+        warningsCount: validation.warnings?.length || 0,
+        suggestionsCount: validation.suggestions?.length || 0,
+      },
+      duration: `${duration}ms`,
+    });
+
+    return newSubNote;
+
+  } catch (error) {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    console.error('[Storage] ❌ SUB-NOTE CREATION FAILED:', {
+      parentId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString(),
+    });
+    
+    throw error; // Re-throw to maintain error handling upstream
   }
-  
-  const newSubNote: Note = {
-    id: uuid(),
-    title: noteData.title || '',
-    content: noteData.content || '',
-    createdAt: new Date().toISOString(),
-    tags: noteData.tags || [],
-    imageUris: noteData.imageUris || [],
-    parentId, // Set parent relationship
-    reminders: noteData.reminders || [],
-    scheduledDate: noteData.scheduledDate,
-  };
-  
-  const allNotes = await getNotes();
-  allNotes.push(newSubNote);
-  await saveNotes(allNotes);
-  
-  return newSubNote;
 }
 
 /**

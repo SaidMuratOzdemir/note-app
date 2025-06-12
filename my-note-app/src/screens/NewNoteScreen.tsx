@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { addNote, createSubNote, getNotes } from '../services/storage';
+import { SubNoteUtils } from '../utils/subNoteUtils';
 import { TagService } from '../services/tagService';
 import { ReminderService } from '../services/reminderService';
 import { Note } from '../types/Note';
@@ -133,30 +134,67 @@ export const NewNoteScreen: React.FC = () => {
     return unsubscribe;
   }, [navigation, savedNote, hasUnsavedReminders, tempNoteId]);
 
-  const save = useCallback(async () => {
-    if (!content.trim()) {
-      Alert.alert('Hata', 'Not içeriği boş olamaz');
-      return;
+  // Helper function: Validate sub-note creation
+  const validateSubNoteCreation = useCallback(async (parentId: string): Promise<{ isValid: boolean; shouldProceed: boolean }> => {
+    const allNotes = await getNotes();
+    const validation = SubNoteUtils.canCreateSubNote(parentId, allNotes);
+    
+    if (!validation.isValid) {
+      Alert.alert(
+        'Alt Not Oluşturulamıyor',
+        validation.reason || 'Bu not için alt not oluşturulamıyor.',
+        [{ text: 'Tamam' }]
+      );
+      return { isValid: false, shouldProceed: false };
     }
 
-    // Better tag parsing - handle both #tag and tag formats
+    // Show warnings if any (but allow creation)
+    if (validation.warnings && validation.warnings.length > 0) {
+      return new Promise(resolve => {
+        Alert.alert(
+          'Uyarı',
+          validation.warnings!.join('\n\n') + '\n\nDevam etmek istiyor musunuz?',
+          [
+            { text: 'İptal', style: 'cancel', onPress: () => resolve({ isValid: true, shouldProceed: false }) },
+            { text: 'Devam Et', onPress: () => resolve({ isValid: true, shouldProceed: true }) }
+          ]
+        );
+      });
+    }
+
+    return { isValid: true, shouldProceed: true };
+  }, []);
+
+  // Helper function: Process post-creation tasks
+  const processPostCreation = useCallback(async (savedNoteId: string, parsedTags: string[]) => {
+    // Update reminder noteIds if any reminders were created for temp note
+    try {
+      const reminderService = ReminderService.getInstance();
+      await reminderService.updateReminderNoteId(tempNoteId, savedNoteId);
+      setHasUnsavedReminders(false);
+      console.log('[NewNoteScreen] ✅ Updated reminder noteIds:', { tempNoteId, realNoteId: savedNoteId });
+    } catch (reminderError) {
+      console.warn('[NewNoteScreen] ⚠️ Error updating reminder noteIds (continuing):', reminderError);
+    }
+    
+    // Update tag cache if note has tags
+    if (parsedTags.length > 0) {
+      const tagService = TagService.getInstance();
+      tagService.updateCache();
+    }
+  }, [tempNoteId]);
+
+  // Helper function: Create note data
+  const createNoteData = useCallback((): { noteData: Partial<Note>; parsedTags: string[]; noteDateTime: Date } => {
     const parsedTags = tags
-      .split(/[\s,#]+/) // Split by spaces, commas, or hashtags
+      .split(/[\s,#]+/)
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0 && tag !== '#');
 
-    // Create a consistent date handling approach
     const now = new Date();
-    let noteDateTime: Date;
-
-    if (selectedDate) {
-      // If a specific date was selected (from calendar), use that date but with current time
-      const timePart = now.toTimeString().split(' ')[0]; // HH:mm:ss format
-      noteDateTime = new Date(`${selectedDate}T${timePart}`);
-    } else {
-      // For new notes created today, use current date/time
-      noteDateTime = now;
-    }
+    const noteDateTime = selectedDate 
+      ? new Date(`${selectedDate}T${now.toTimeString().split(' ')[0]}`)
+      : now;
 
     const noteData: Partial<Note> = {
       title: title.trim() || undefined,
@@ -164,20 +202,34 @@ export const NewNoteScreen: React.FC = () => {
       tags: parsedTags.length > 0 ? parsedTags : undefined,
       imageUris: imageUris.length > 0 ? imageUris : undefined,
     };
+
+    return { noteData, parsedTags, noteDateTime };
+  }, [title, content, tags, imageUris, selectedDate]);
+
+  const save = useCallback(async () => {
+    if (!content.trim()) {
+      Alert.alert('Hata', 'Not içeriği boş olamaz');
+      return;
+    }
+
+    const { noteData, parsedTags, noteDateTime } = createNoteData();
     
     try {
       let savedNoteId: string;
       let createdNote: Note;
       
       if (isSubNote && parentNoteId) {
-        // Create sub-note
+        const validation = await validateSubNoteCreation(parentNoteId);
+        if (!validation.isValid || !validation.shouldProceed) {
+          return;
+        }
+
         const createdSubNote = await createSubNote(parentNoteId, noteData);
         savedNoteId = createdSubNote.id;
         createdNote = createdSubNote;
         setSavedNote(createdSubNote);
         console.log('[NewNoteScreen] ✅ Created sub-note:', savedNoteId);
       } else {
-        // Create regular note
         const note: Note = {
           id: uuid(),
           content: content.trim(),
@@ -193,31 +245,13 @@ export const NewNoteScreen: React.FC = () => {
         console.log('[NewNoteScreen] ✅ Created note:', savedNoteId);
       }
 
-      // Update reminder noteIds if any reminders were created for temp note
-      try {
-        const reminderService = ReminderService.getInstance();
-        await reminderService.updateReminderNoteId(tempNoteId, savedNoteId);
-        setHasUnsavedReminders(false); // Mark reminders as saved
-        console.log('[NewNoteScreen] ✅ Updated reminder noteIds:', {
-          tempNoteId,
-          realNoteId: savedNoteId
-        });
-      } catch (reminderError) {
-        console.warn('[NewNoteScreen] ⚠️ Error updating reminder noteIds (continuing):', reminderError);
-      }
-      
-      // Update tag cache if note has tags
-      if (parsedTags.length > 0) {
-        const tagService = TagService.getInstance();
-        tagService.updateCache();
-      }
-      
+      await processPostCreation(savedNoteId, parsedTags);
       navigation.goBack();
     } catch (error) {
       console.error('[NewNoteScreen] ❌ Error saving note:', error);
       Alert.alert('Hata', 'Not kaydedilirken bir hata oluştu');
     }
-  }, [title, content, tags, imageUris, selectedDate, navigation, isSubNote, parentNoteId, tempNoteId, hasUnsavedReminders]);
+  }, [content, createNoteData, isSubNote, parentNoteId, validateSubNoteCreation, processPostCreation, navigation]);
 
   useEffect(() => {
     setupHeaderButtons();
@@ -412,7 +446,7 @@ const styles = StyleSheet.create({
   },
   parentContextLabel: {
     fontSize: 12,
-    color: Colors.textGray,
+    color: Colors.neutral.darkGray,
     marginBottom: 4,
     fontWeight: '600',
   },
