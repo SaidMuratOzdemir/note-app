@@ -2,6 +2,9 @@ export const Colors = {
   // Primary pastel palette for note cards (4 colors rotating)
   primaryPastels: ['#FFCDB2', '#CDB4DB', '#A8E6CF', '#FFE066'],
   
+  // Primary color for UI elements
+  primary: '#355070',       // Main brand color
+  
   // Accent colors for UI elements
   accent: {
     coral: '#FFB4A2',      // For tags
@@ -15,6 +18,7 @@ export const Colors = {
     white: '#FFFFFF',
     lightGray1: '#F2F2F2',  // Background alternatives
     lightGray2: '#E0E0E0',  // Borders, dividers
+    lightGray: '#E0E0E0',   // Alias for lightGray2
     mediumGray: '#CCCCCC',  // Disabled states
     darkGray: '#333333',    // Primary text
   },

@@ -28,8 +28,6 @@ import {
   FlatList,
   Alert,
   Animated,
-  PanGestureHandler,
-  State,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Reminder, ReminderFrequency } from '../types/Reminder';

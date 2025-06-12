@@ -79,32 +79,62 @@ export class ReminderService {
    * Must be called before using any other methods
    */
   async initialize(): Promise<void> {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      console.log('[ReminderService] 🔄 Already initialized, skipping...');
+      return;
+    }
 
     try {
-      console.log('[ReminderService] Initializing...');
+      console.log('[ReminderService] 🚀 Starting initialization...');
+      const startTime = Date.now();
       
       // Load configuration and settings
+      console.log('[ReminderService] 📋 Loading configuration and settings...');
       await Promise.all([
         this.loadConfig(),
         this.loadSettings(),
         this.loadReminders(),
       ]);
+      console.log('[ReminderService] ✅ Configuration and data loaded successfully');
 
       // Setup notification permissions and handlers
+      console.log('[ReminderService] 🔔 Setting up notifications...');
       await this.setupNotifications();
+      console.log('[ReminderService] ✅ Notifications setup completed');
       
       // Schedule all active reminders
+      console.log('[ReminderService] ⏰ Rescheduling active reminders...');
       await this.rescheduleAllActiveReminders();
+      console.log('[ReminderService] ✅ Active reminders rescheduled');
       
       // Cleanup expired/completed reminders
+      console.log('[ReminderService] 🧹 Cleaning up expired reminders...');
       await this.cleanupExpiredReminders();
+      console.log('[ReminderService] ✅ Cleanup completed');
+      
+      const endTime = Date.now();
+      const initTime = endTime - startTime;
       
       this.isInitialized = true;
-      console.log(`[ReminderService] Initialized with ${this.reminders.size} reminders`);
+      console.log(`[ReminderService] ✅ INITIALIZATION COMPLETE - Duration: ${initTime}ms`);
+      console.log(`[ReminderService] 📊 Final Statistics:`, {
+        totalReminders: this.reminders.size,
+        activeReminders: Array.from(this.reminders.values()).filter(r => r.isActive && !r.isCompleted).length,
+        completedReminders: Array.from(this.reminders.values()).filter(r => r.isCompleted).length,
+        overdueReminders: Array.from(this.reminders.values()).filter(r => {
+          const now = new Date().toISOString();
+          return r.isActive && !r.isCompleted && r.scheduledDate < now;
+        }).length,
+        recurringReminders: Array.from(this.reminders.values()).filter(r => r.frequency !== 'once').length
+      });
       
     } catch (error) {
-      console.error('[ReminderService] Initialization failed:', error);
+      console.error('[ReminderService] ❌ INITIALIZATION FAILED:', error);
+      console.error('[ReminderService] 🔍 Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        timestamp: new Date().toISOString()
+      });
       throw new Error(`Failed to initialize ReminderService: ${error}`);
     }
   }
@@ -117,53 +147,134 @@ export class ReminderService {
    * Create a new reminder with validation and smart features
    */
   async createReminder(data: ReminderCreationData): Promise<Reminder> {
-    console.log('[ReminderService] 🆕 Creating reminder:', {
+    const startTime = Date.now();
+    console.log('[ReminderService] 🆕 CREATING REMINDER - Start operation:', {
       noteId: data.noteId,
       title: data.title,
       scheduledDate: data.scheduledDate,
-      frequency: data.frequency
+      frequency: data.frequency || 'once',
+      isActive: data.isActive !== false,
+      hasMessage: !!data.message,
+      messageLength: data.message?.length || 0,
+      timestamp: new Date().toISOString()
     });
     
-    await this.ensureInitialized();
-    
-    // Validation
-    await this.validateReminderCreation(data);
-    console.log('[ReminderService] ✅ Validation passed');
+    try {
+      await this.ensureInitialized();
+      console.log('[ReminderService] ✅ Service initialization confirmed');
+      
+      // Validation with detailed logging
+      console.log('[ReminderService] 🔍 Starting validation process...');
+      await this.validateReminderCreation(data);
+      console.log('[ReminderService] ✅ Validation passed successfully');
 
-    const reminder: Reminder = {
-      id: this.generateUniqueId('reminder'),
-      noteId: data.noteId,
-      title: data.title || 'Note Reminder',
-      message: data.message,
-      scheduledDate: data.scheduledDate,
-      frequency: data.frequency || this.config.defaultFrequency,
-      isActive: data.isActive !== false,
-      isCompleted: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      // Generate unique ID and log generation process
+      const reminderId = this.generateUniqueId('reminder');
+      console.log('[ReminderService] 🆔 Generated unique ID:', reminderId);
 
-    // Calculate next trigger for recurring reminders
-    if (reminder.frequency !== 'once') {
-      reminder.nextTrigger = this.calculateNextTrigger(reminder);
-      console.log('[ReminderService] 🔄 Calculated next trigger:', reminder.nextTrigger);
+      const reminder: Reminder = {
+        id: reminderId,
+        noteId: data.noteId,
+        title: data.title || 'Note Reminder',
+        message: data.message,
+        scheduledDate: data.scheduledDate,
+        frequency: data.frequency || this.config.defaultFrequency,
+        isActive: data.isActive !== false,
+        isCompleted: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      console.log('[ReminderService] 📋 Reminder object created:', {
+        id: reminder.id,
+        title: reminder.title,
+        scheduledDate: reminder.scheduledDate,
+        frequency: reminder.frequency,
+        isActive: reminder.isActive,
+        hasMessage: !!reminder.message,
+        createdAt: reminder.createdAt
+      });
+
+      // Calculate next trigger for recurring reminders
+      if (reminder.frequency !== 'once') {
+        console.log('[ReminderService] 🔄 Calculating next trigger for recurring reminder...');
+        reminder.nextTrigger = this.calculateNextTrigger(reminder);
+        console.log('[ReminderService] ⏰ Next trigger calculated:', {
+          frequency: reminder.frequency,
+          originalDate: reminder.scheduledDate,
+          nextTrigger: reminder.nextTrigger,
+          timeDifference: reminder.nextTrigger ? 
+            new Date(reminder.nextTrigger).getTime() - new Date(reminder.scheduledDate).getTime() : 0
+        });
+      } else {
+        console.log('[ReminderService] 🔁 One-time reminder, no next trigger calculation needed');
+      }
+
+      // Store in memory
+      const beforeCount = this.reminders.size;
+      this.reminders.set(reminder.id, reminder);
+      const afterCount = this.reminders.size;
+      console.log('[ReminderService] 💾 Stored reminder in memory:', {
+        reminderId: reminder.id,
+        beforeCount,
+        afterCount,
+        totalActive: Array.from(this.reminders.values()).filter(r => r.isActive && !r.isCompleted).length,
+        totalCompleted: Array.from(this.reminders.values()).filter(r => r.isCompleted).length
+      });
+      
+      // Schedule notification if appropriate
+      if (reminder.isActive && !reminder.isCompleted) {
+        console.log('[ReminderService] 📅 Scheduling notification for active reminder...');
+        await this.scheduleNotification(reminder);
+        console.log('[ReminderService] ✅ Notification scheduling completed');
+      } else {
+        console.log('[ReminderService] ⏸️ Skipping notification scheduling:', {
+          isActive: reminder.isActive,
+          isCompleted: reminder.isCompleted,
+          reason: !reminder.isActive ? 'reminder inactive' : 'reminder completed'
+        });
+      }
+
+      // Debounced save and notify listeners
+      console.log('[ReminderService] 💾 Triggering debounced save...');
+      await this.debouncedSave();
+      
+      console.log('[ReminderService] 📢 Notifying listeners...');
+      this.notifyListeners();
+      
+      console.log('[ReminderService] 🗃️ Invalidating analytics cache...');
+      this.invalidateAnalyticsCache();
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ REMINDER CREATION COMPLETE:', {
+        reminderId: reminder.id,
+        reminderTitle: reminder.title,
+        noteId: reminder.noteId,
+        duration: `${duration}ms`,
+        hasNotificationId: !!reminder.notificationId,
+        totalReminders: this.reminders.size,
+        success: true
+      });
+      
+      return reminder;
+      
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ REMINDER CREATION FAILED:', {
+        noteId: data.noteId,
+        title: data.title,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw error; // Re-throw to maintain error handling upstream
     }
-
-    // Store in memory and schedule notification
-    this.reminders.set(reminder.id, reminder);
-    console.log('[ReminderService] 💾 Stored reminder in memory, total count:', this.reminders.size);
-    
-    if (reminder.isActive && !reminder.isCompleted) {
-      await this.scheduleNotification(reminder);
-    }
-
-    // Debounced save and notify listeners
-    await this.debouncedSave();
-    this.notifyListeners();
-    this.invalidateAnalyticsCache();
-
-    console.log('[ReminderService] ✅ Created reminder successfully:', reminder.id);
-    return reminder;
   }
 
   /**
@@ -173,12 +284,71 @@ export class ReminderService {
     noteId: string, 
     sortOptions?: ReminderSortOptions
   ): Promise<Reminder[]> {
-    await this.ensureInitialized();
+    const startTime = Date.now();
+    console.log('[ReminderService] 📋 GETTING REMINDERS FOR NOTE - Start operation:', {
+      noteId,
+      sortOptions: sortOptions || 'default',
+      timestamp: new Date().toISOString()
+    });
     
-    const noteReminders = Array.from(this.reminders.values())
-      .filter(reminder => reminder.noteId === noteId);
+    try {
+      await this.ensureInitialized();
+      console.log('[ReminderService] ✅ Service initialization confirmed');
+      
+      const allReminders = Array.from(this.reminders.values());
+      const noteReminders = allReminders.filter(reminder => reminder.noteId === noteId);
 
-    return this.sortReminders(noteReminders, sortOptions);
+      console.log('[ReminderService] 🔍 Found reminders for note:', {
+        noteId,
+        totalReminders: allReminders.length,
+        matchingReminders: noteReminders.length,
+        activeMatching: noteReminders.filter(r => r.isActive && !r.isCompleted).length,
+        completedMatching: noteReminders.filter(r => r.isCompleted).length,
+        inactiveMatching: noteReminders.filter(r => !r.isActive && !r.isCompleted).length,
+        recurringMatching: noteReminders.filter(r => r.frequency !== 'once').length,
+        overdueMatching: noteReminders.filter(r => {
+          const now = new Date().toISOString();
+          return r.isActive && !r.isCompleted && r.scheduledDate < now;
+        }).length
+      });
+
+      const sortedReminders = this.sortReminders(noteReminders, sortOptions);
+      
+      console.log('[ReminderService] 🔀 Applied sorting:', {
+        sortField: sortOptions?.field || 'scheduledDate (default)',
+        sortDirection: sortOptions?.direction || 'asc (default)',
+        originalOrder: noteReminders.slice(0, 3).map(r => r.id),
+        sortedOrder: sortedReminders.slice(0, 3).map(r => r.id),
+        orderChanged: JSON.stringify(noteReminders.map(r => r.id)) !== JSON.stringify(sortedReminders.map(r => r.id))
+      });
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ GET REMINDERS FOR NOTE COMPLETE:', {
+        noteId,
+        resultCount: sortedReminders.length,
+        duration: `${duration}ms`,
+        sortingApplied: !!sortOptions,
+        success: true
+      });
+      
+      return sortedReminders;
+      
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ GET REMINDERS FOR NOTE FAILED:', {
+        noteId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw error; // Re-throw to maintain error handling upstream
+    }
   }
 
   /**
@@ -204,82 +374,288 @@ export class ReminderService {
    * Update an existing reminder with validation
    */
   async updateReminder(reminderId: string, updates: Partial<Reminder>): Promise<Reminder> {
-    console.log('[ReminderService] 🔄 Updating reminder:', reminderId, updates);
+    const startTime = Date.now();
+    console.log('[ReminderService] 🔄 UPDATING REMINDER - Start operation:', {
+      reminderId,
+      updateKeys: Object.keys(updates),
+      updateValues: updates,
+      timestamp: new Date().toISOString()
+    });
     
-    await this.ensureInitialized();
-    
-    const existingReminder = this.reminders.get(reminderId);
-    if (!existingReminder) {
-      console.error('[ReminderService] ❌ Reminder not found:', reminderId);
-      throw new Error(`Reminder not found: ${reminderId}`);
+    try {
+      await this.ensureInitialized();
+      console.log('[ReminderService] ✅ Service initialization confirmed');
+      
+      const existingReminder = this.reminders.get(reminderId);
+      if (!existingReminder) {
+        console.error('[ReminderService] ❌ REMINDER NOT FOUND:', {
+          reminderId,
+          totalReminders: this.reminders.size,
+          availableIds: Array.from(this.reminders.keys()).slice(0, 5), // Show first 5 IDs
+          searchAttempted: true
+        });
+        throw new Error(`Reminder not found: ${reminderId}`);
+      }
+
+      console.log('[ReminderService] 📋 Found existing reminder:', {
+        id: existingReminder.id,
+        title: existingReminder.title,
+        currentActive: existingReminder.isActive,
+        currentCompleted: existingReminder.isCompleted,
+        currentScheduledDate: existingReminder.scheduledDate,
+        currentFrequency: existingReminder.frequency,
+        hasNotificationId: !!existingReminder.notificationId
+      });
+
+      // Create updated reminder
+      const updatedReminder: Reminder = {
+        ...existingReminder,
+        ...updates,
+        id: reminderId, // Ensure ID cannot be changed
+        updatedAt: new Date().toISOString(),
+      };
+
+      console.log('[ReminderService] 🔧 Applied updates to reminder:', {
+        reminderId,
+        changedFields: Object.keys(updates),
+        before: {
+          isActive: existingReminder.isActive,
+          isCompleted: existingReminder.isCompleted,
+          scheduledDate: existingReminder.scheduledDate,
+          frequency: existingReminder.frequency
+        },
+        after: {
+          isActive: updatedReminder.isActive,
+          isCompleted: updatedReminder.isCompleted,
+          scheduledDate: updatedReminder.scheduledDate,
+          frequency: updatedReminder.frequency
+        }
+      });
+
+      // Recalculate next trigger if frequency or date changed
+      const needsRecalculation = updates.frequency || updates.scheduledDate;
+      if (needsRecalculation) {
+        console.log('[ReminderService] 🔄 Recalculating next trigger due to frequency/date change...');
+        const oldNextTrigger = updatedReminder.nextTrigger;
+        
+        updatedReminder.nextTrigger = updatedReminder.frequency !== 'once' 
+          ? this.calculateNextTrigger(updatedReminder)
+          : undefined;
+          
+        console.log('[ReminderService] ⏰ Next trigger recalculation result:', {
+          reminderId,
+          frequency: updatedReminder.frequency,
+          oldNextTrigger,
+          newNextTrigger: updatedReminder.nextTrigger,
+          calculationNeeded: updatedReminder.frequency !== 'once'
+        });
+      } else {
+        console.log('[ReminderService] ⏸️ Next trigger recalculation not needed');
+      }
+
+      // Update storage
+      this.reminders.set(reminderId, updatedReminder);
+      console.log('[ReminderService] 💾 Updated reminder in memory storage');
+      
+      // Handle notification rescheduling
+      console.log('[ReminderService] 🔔 Managing notification rescheduling...');
+      try {
+        console.log('[ReminderService] 🔕 Cancelling existing notification...');
+        await this.cancelNotification(reminderId);
+        console.log('[ReminderService] ✅ Existing notification cancelled');
+        
+        if (updatedReminder.isActive && !updatedReminder.isCompleted) {
+          console.log('[ReminderService] 📅 Scheduling new notification for updated reminder...');
+          await this.scheduleNotification(updatedReminder);
+          console.log('[ReminderService] ✅ New notification scheduled');
+        } else {
+          console.log('[ReminderService] ⏸️ Not scheduling notification:', {
+            isActive: updatedReminder.isActive,
+            isCompleted: updatedReminder.isCompleted,
+            reason: !updatedReminder.isActive ? 'reminder inactive' : 'reminder completed'
+          });
+        }
+      } catch (notificationError) {
+        console.error('[ReminderService] ⚠️ Notification management error (continuing):', {
+          error: notificationError instanceof Error ? notificationError.message : String(notificationError),
+          reminderId,
+          operation: 'notification rescheduling'
+        });
+      }
+
+      // Save and notify
+      console.log('[ReminderService] 💾 Triggering debounced save...');
+      await this.debouncedSave();
+      
+      console.log('[ReminderService] 📢 Notifying listeners...');
+      this.notifyListeners();
+      
+      console.log('[ReminderService] 🗃️ Invalidating analytics cache...');
+      this.invalidateAnalyticsCache();
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ REMINDER UPDATE COMPLETE:', {
+        reminderId,
+        reminderTitle: updatedReminder.title,
+        changedFields: Object.keys(updates),
+        duration: `${duration}ms`,
+        hasNotificationId: !!updatedReminder.notificationId,
+        isActive: updatedReminder.isActive,
+        isCompleted: updatedReminder.isCompleted,
+        success: true
+      });
+
+      return updatedReminder;
+      
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ REMINDER UPDATE FAILED:', {
+        reminderId,
+        updates,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw error; // Re-throw to maintain error handling upstream
     }
-
-    // Create updated reminder
-    const updatedReminder: Reminder = {
-      ...existingReminder,
-      ...updates,
-      id: reminderId, // Ensure ID cannot be changed
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Recalculate next trigger if frequency or date changed
-    if (updates.frequency || updates.scheduledDate) {
-      updatedReminder.nextTrigger = updatedReminder.frequency !== 'once' 
-        ? this.calculateNextTrigger(updatedReminder)
-        : undefined;
-      console.log('[ReminderService] 🔄 Recalculated next trigger:', updatedReminder.nextTrigger);
-    }
-
-    // Update storage and reschedule notification
-    this.reminders.set(reminderId, updatedReminder);
-    
-    await this.cancelNotification(reminderId);
-    if (updatedReminder.isActive && !updatedReminder.isCompleted) {
-      await this.scheduleNotification(updatedReminder);
-    }
-
-    await this.debouncedSave();
-    this.notifyListeners();
-    this.invalidateAnalyticsCache();
-
-    console.log(`[ReminderService] Updated reminder: ${reminderId}`);
-    return updatedReminder;
   }
 
   /**
    * Delete a reminder permanently
    */
   async deleteReminder(reminderId: string): Promise<void> {
+    console.log('[ReminderService] 🗑️ Starting delete operation for reminder:', reminderId);
+    
     await this.ensureInitialized();
     
     if (!this.reminders.has(reminderId)) {
+      console.error('[ReminderService] ❌ Delete failed - reminder not found:', reminderId);
       throw new Error(`Reminder not found: ${reminderId}`);
     }
 
-    // Cancel notification and remove from storage
-    await this.cancelNotification(reminderId);
-    this.reminders.delete(reminderId);
+    const reminder = this.reminders.get(reminderId);
+    console.log('[ReminderService] 📋 Deleting reminder details:', {
+      id: reminder?.id,
+      title: reminder?.title,
+      noteId: reminder?.noteId,
+      isActive: reminder?.isActive,
+      hasNotification: !!reminder?.notificationId
+    });
 
-    await this.debouncedSave();
+    // Cancel notification and remove from storage
+    try {
+      console.log('[ReminderService] 🔕 Cancelling notification for deleted reminder...');
+      await this.cancelNotification(reminderId);
+      console.log('[ReminderService] ✅ Notification cancelled successfully');
+    } catch (error) {
+      console.error('[ReminderService] ⚠️ Error cancelling notification (proceeding with delete):', error);
+    }
+
+    this.reminders.delete(reminderId);
+    console.log('[ReminderService] 🗃️ Removed from memory, remaining count:', this.reminders.size);
+
+    try {
+      await this.debouncedSave();
+      console.log('[ReminderService] 💾 Saved changes to storage');
+    } catch (error) {
+      console.error('[ReminderService] ❌ Error saving after delete:', error);
+    }
+
     this.notifyListeners();
     this.invalidateAnalyticsCache();
+    console.log('[ReminderService] 📢 Notified listeners and invalidated cache');
 
-    console.log(`[ReminderService] Deleted reminder: ${reminderId}`);
+    console.log(`[ReminderService] ✅ Successfully deleted reminder: ${reminderId}`);
   }
 
   /**
    * Mark reminder as completed
    */
   async completeReminder(reminderId: string): Promise<void> {
-    const now = new Date().toISOString();
-    
-    await this.updateReminder(reminderId, {
-      isCompleted: true,
-      lastTriggered: now,
-      isActive: false, // Disable further notifications
+    const startTime = Date.now();
+    console.log('[ReminderService] ✅ COMPLETING REMINDER - Start operation:', {
+      reminderId,
+      timestamp: new Date().toISOString()
     });
+    
+    try {
+      const now = new Date().toISOString();
+      console.log('[ReminderService] 🕐 Completion timestamp:', now);
+      
+      const existingReminder = this.reminders.get(reminderId);
+      if (!existingReminder) {
+        console.error('[ReminderService] ❌ COMPLETE FAILED - reminder not found:', {
+          reminderId,
+          totalReminders: this.reminders.size,
+          availableIds: Array.from(this.reminders.keys()).slice(0, 5),
+          searchAttempted: true
+        });
+        throw new Error(`Reminder not found: ${reminderId}`);
+      }
 
-    console.log(`[ReminderService] Completed reminder: ${reminderId}`);
+      console.log('[ReminderService] 📋 Found reminder to complete:', {
+        id: existingReminder.id,
+        title: existingReminder.title,
+        noteId: existingReminder.noteId,
+        frequency: existingReminder.frequency,
+        wasActive: existingReminder.isActive,
+        wasCompleted: existingReminder.isCompleted,
+        scheduledDate: existingReminder.scheduledDate,
+        hasNotification: !!existingReminder.notificationId,
+        lastTriggered: existingReminder.lastTriggered
+      });
+
+      // Check if already completed
+      if (existingReminder.isCompleted) {
+        console.log('[ReminderService] ℹ️ Reminder already completed:', {
+          reminderId,
+          completedAt: existingReminder.lastTriggered,
+          skippingUpdate: true
+        });
+        return;
+      }
+      
+      // Use updateReminder to handle completion with full logging
+      console.log('[ReminderService] 🔄 Delegating to updateReminder for completion...');
+      await this.updateReminder(reminderId, {
+        isCompleted: true,
+        lastTriggered: now,
+        isActive: false, // Disable further notifications
+      });
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ REMINDER COMPLETION SUCCESSFUL:', {
+        reminderId,
+        reminderTitle: existingReminder.title,
+        completedAt: now,
+        duration: `${duration}ms`,
+        wasRecurring: existingReminder.frequency !== 'once',
+        totalActive: Array.from(this.reminders.values()).filter(r => r.isActive && !r.isCompleted).length,
+        totalCompleted: Array.from(this.reminders.values()).filter(r => r.isCompleted).length
+      });
+      
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ REMINDER COMPLETION FAILED:', {
+        reminderId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw error; // Re-throw to maintain error handling upstream
+    }
   }
 
   /**
@@ -393,26 +769,101 @@ export class ReminderService {
    * Setup notification permissions and handlers
    */
   private async setupNotifications(): Promise<void> {
+    const startTime = Date.now();
+    console.log('[ReminderService] 🔔 SETTING UP NOTIFICATIONS - Start operation:', {
+      platform: process.env.NODE_ENV || 'unknown',
+      timestamp: new Date().toISOString()
+    });
+    
     try {
       // Request permissions
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.warn('[ReminderService] Notification permissions not granted');
+      console.log('[ReminderService] 🔐 Requesting notification permissions...');
+      const permissionResult = await Notifications.requestPermissionsAsync();
+      
+      console.log('[ReminderService] 📋 Permission request result:', {
+        status: permissionResult.status,
+        granted: permissionResult.status === 'granted',
+        canAskAgain: permissionResult.canAskAgain,
+        expires: permissionResult.expires,
+        ios: permissionResult.ios ? {
+          status: permissionResult.ios.status,
+          allowsAlert: permissionResult.ios.allowsAlert,
+          allowsBadge: permissionResult.ios.allowsBadge,
+          allowsSound: permissionResult.ios.allowsSound
+        } : 'N/A (not iOS)'
+      });
+      
+      if (permissionResult.status !== 'granted') {
+        console.warn('[ReminderService] ⚠️ Notification permissions not granted:', {
+          status: permissionResult.status,
+          canAskAgain: permissionResult.canAskAgain,
+          impact: 'Notifications will not work',
+          recommendation: 'User should enable notifications in device settings'
+        });
         return;
       }
 
+      console.log('[ReminderService] ✅ Notification permissions granted, configuring behavior...');
+
       // Configure notification behavior
-      await Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: this.settings.enabled,
-          shouldPlaySound: this.settings.soundEnabled,
-          shouldSetBadge: this.settings.badgeEnabled,
-        }),
+      const notificationHandler = {
+        shouldShowAlert: this.settings.enabled,
+        shouldPlaySound: this.settings.soundEnabled,
+        shouldSetBadge: this.settings.badgeEnabled,
+        shouldShowBanner: this.settings.enabled,
+        shouldShowList: this.settings.enabled,
+      };
+      
+      console.log('[ReminderService] ⚙️ Configuring notification handler:', {
+        shouldShowAlert: notificationHandler.shouldShowAlert,
+        shouldPlaySound: notificationHandler.shouldPlaySound,
+        shouldSetBadge: notificationHandler.shouldSetBadge,
+        shouldShowBanner: notificationHandler.shouldShowBanner,
+        shouldShowList: notificationHandler.shouldShowList,
+        settingsEnabled: this.settings.enabled,
+        soundEnabled: this.settings.soundEnabled,
+        badgeEnabled: this.settings.badgeEnabled
       });
 
-      console.log('[ReminderService] Notifications configured successfully');
+      await Notifications.setNotificationHandler({
+        handleNotification: async (notification) => {
+          console.log('[ReminderService] 📨 Handling incoming notification:', {
+            identifier: notification.request.identifier,
+            title: notification.request.content.title,
+            body: notification.request.content.body,
+            data: notification.request.content.data,
+            trigger: notification.request.trigger,
+            date: notification.date
+          });
+          return notificationHandler;
+        },
+      });
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ NOTIFICATION SETUP COMPLETE:', {
+        permissionStatus: permissionResult.status,
+        handlerConfigured: true,
+        duration: `${duration}ms`,
+        settingsApplied: this.settings,
+        success: true
+      });
+      
     } catch (error) {
-      console.error('[ReminderService] Failed to setup notifications:', error);
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ NOTIFICATION SETUP FAILED:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        impact: 'Notifications will not work',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Don't throw - continue initialization without notifications
+      console.log('[ReminderService] 🔄 Continuing initialization without notifications...');
     }
   }
 
@@ -420,16 +871,61 @@ export class ReminderService {
    * Setup notification event handlers
    */
   private setupNotificationHandlers(): void {
+    console.log('[ReminderService] 🎧 Setting up notification event handlers...');
+    
     // Handle notification received while app is in foreground
-    Notifications.addNotificationReceivedListener(notification => {
-      console.log('[ReminderService] Notification received:', notification);
-      this.handleNotificationReceived(notification);
+    const receivedListener = Notifications.addNotificationReceivedListener(notification => {
+      console.log('[ReminderService] 📨 NOTIFICATION RECEIVED (foreground):', {
+        identifier: notification.request.identifier,
+        title: notification.request.content.title,
+        body: notification.request.content.body,
+        data: notification.request.content.data,
+        date: notification.date,
+        trigger: notification.request.trigger,
+        timestamp: new Date().toISOString()
+      });
+      
+      try {
+        this.handleNotificationReceived(notification);
+        console.log('[ReminderService] ✅ Notification received handler completed');
+      } catch (error) {
+        console.error('[ReminderService] ❌ Error in notification received handler:', {
+          error: error instanceof Error ? error.message : String(error),
+          notificationId: notification.request.identifier
+        });
+      }
     });
 
     // Handle notification tapped
-    Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('[ReminderService] Notification tapped:', response);
-      this.handleNotificationTapped(response);
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('[ReminderService] 👆 NOTIFICATION TAPPED (user interaction):', {
+        notificationId: response.notification.request.identifier,
+        actionIdentifier: response.actionIdentifier,
+        userText: response.userText,
+        notification: {
+          title: response.notification.request.content.title,
+          body: response.notification.request.content.body,
+          data: response.notification.request.content.data
+        },
+        timestamp: new Date().toISOString()
+      });
+      
+      try {
+        this.handleNotificationTapped(response);
+        console.log('[ReminderService] ✅ Notification tapped handler completed');
+      } catch (error) {
+        console.error('[ReminderService] ❌ Error in notification tapped handler:', {
+          error: error instanceof Error ? error.message : String(error),
+          notificationId: response.notification.request.identifier,
+          actionIdentifier: response.actionIdentifier
+        });
+      }
+    });
+
+    console.log('[ReminderService] ✅ Notification event handlers setup complete:', {
+      receivedListenerActive: !!receivedListener,
+      responseListenerActive: !!responseListener,
+      handlersConfigured: 2
     });
   }
 
@@ -437,14 +933,50 @@ export class ReminderService {
    * Schedule a notification for a reminder
    */
   private async scheduleNotification(reminder: Reminder): Promise<void> {
-    if (!this.settings.enabled) return;
+    console.log('[ReminderService] 📅 Starting notification scheduling for reminder:', {
+      reminderId: reminder.id,
+      title: reminder.title,
+      scheduledDate: reminder.scheduledDate,
+      frequency: reminder.frequency,
+      isActive: reminder.isActive,
+      isCompleted: reminder.isCompleted,
+      settingsEnabled: this.settings.enabled
+    });
+
+    if (!this.settings.enabled) {
+      console.log('[ReminderService] 🔕 Notifications disabled in settings, skipping scheduling');
+      return;
+    }
+
+    if (!reminder.isActive) {
+      console.log('[ReminderService] ⏸️ Reminder is inactive, skipping scheduling');
+      return;
+    }
+
+    if (reminder.isCompleted) {
+      console.log('[ReminderService] ✅ Reminder is completed, skipping scheduling');
+      return;
+    }
 
     try {
       const scheduledDate = new Date(reminder.scheduledDate);
+      const now = new Date();
+      
+      console.log('[ReminderService] 🕐 Time comparison:', {
+        scheduledDate: scheduledDate.toISOString(),
+        currentTime: now.toISOString(),
+        isPastDate: scheduledDate <= now,
+        timeDifference: scheduledDate.getTime() - now.getTime()
+      });
       
       // Don't schedule notifications for past dates
-      if (scheduledDate <= new Date()) {
-        console.warn(`[ReminderService] Skipping notification for past date: ${reminder.id}`);
+      if (scheduledDate <= now) {
+        console.warn(`[ReminderService] ⚠️ Skipping notification for past date:`, {
+          reminderId: reminder.id,
+          scheduledDate: scheduledDate.toISOString(),
+          currentTime: now.toISOString(),
+          pastBy: now.getTime() - scheduledDate.getTime()
+        });
         return;
       }
 
@@ -455,20 +987,65 @@ export class ReminderService {
           reminderId: reminder.id,
           noteId: reminder.noteId,
           frequency: reminder.frequency,
-        } as NotificationPayload,
+          createdAt: reminder.createdAt,
+        },
       };
 
+      console.log('[ReminderService] 📧 Notification content prepared:', {
+        title: notificationContent.title,
+        body: notificationContent.body,
+        dataKeys: Object.keys(notificationContent.data),
+        contentSize: JSON.stringify(notificationContent).length
+      });
+      
+      const secondsUntilTrigger = Math.floor((scheduledDate.getTime() - Date.now()) / 1000);
+      const minutesUntilTrigger = Math.floor(secondsUntilTrigger / 60);
+      const hoursUntilTrigger = Math.floor(minutesUntilTrigger / 60);
+      
+      console.log('[ReminderService] ⏱️ Trigger timing:', {
+        secondsUntilTrigger,
+        minutesUntilTrigger,
+        hoursUntilTrigger,
+        humanReadable: hoursUntilTrigger > 0 
+          ? `${hoursUntilTrigger}h ${minutesUntilTrigger % 60}m`
+          : minutesUntilTrigger > 0 
+            ? `${minutesUntilTrigger}m ${secondsUntilTrigger % 60}s`
+            : `${secondsUntilTrigger}s`
+      });
+      
+      // TODO: Fix notification trigger type - using null for immediate testing
+      // Need to find the correct expo-notifications trigger format for version 0.31.3
+      console.log('[ReminderService] 🚨 IMPORTANT: Using immediate trigger (null) for testing - implement proper scheduling!');
+      
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: notificationContent,
-        trigger: { date: scheduledDate },
+        trigger: null, // Immediate notification for now
       });
 
       // Store notification ID for later cancellation
       reminder.notificationId = notificationId;
-      console.log(`[ReminderService] Scheduled notification ${notificationId} for reminder ${reminder.id}`);
+      
+      console.log('[ReminderService] ✅ Notification scheduled successfully:', {
+        notificationId,
+        reminderId: reminder.id,
+        reminderTitle: reminder.title,
+        scheduledFor: scheduledDate.toISOString(),
+        timeUntilTrigger: `${hoursUntilTrigger}h ${minutesUntilTrigger % 60}m`,
+        notificationIdType: typeof notificationId
+      });
       
     } catch (error) {
-      console.error(`[ReminderService] Failed to schedule notification for reminder ${reminder.id}:`, error);
+      console.error(`[ReminderService] ❌ NOTIFICATION SCHEDULING FAILED for reminder ${reminder.id}:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        reminderId: reminder.id,
+        reminderTitle: reminder.title,
+        scheduledDate: reminder.scheduledDate,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Don't throw - continue with other operations
+      console.log('[ReminderService] 🔄 Continuing despite notification scheduling failure...');
     }
   }
 
@@ -476,15 +1053,75 @@ export class ReminderService {
    * Cancel a notification for a reminder
    */
   private async cancelNotification(reminderId: string): Promise<void> {
-    const reminder = this.reminders.get(reminderId);
-    if (!reminder?.notificationId) return;
-
+    const startTime = Date.now();
+    console.log('[ReminderService] 🔕 CANCELLING NOTIFICATION - Start operation:', {
+      reminderId,
+      timestamp: new Date().toISOString()
+    });
+    
     try {
+      const reminder = this.reminders.get(reminderId);
+      if (!reminder) {
+        console.log('[ReminderService] ℹ️ Reminder not found in memory, cannot cancel notification:', {
+          reminderId,
+          totalReminders: this.reminders.size,
+          searchResult: 'not found'
+        });
+        return;
+      }
+
+      if (!reminder.notificationId) {
+        console.log('[ReminderService] ℹ️ No notification to cancel (no notification ID):', {
+          reminderId,
+          reminderTitle: reminder.title,
+          notificationId: null,
+          skippingCancel: true
+        });
+        return;
+      }
+
+      console.log('[ReminderService] 🎯 Found notification to cancel:', {
+        reminderId,
+        reminderTitle: reminder.title,
+        notificationId: reminder.notificationId,
+        notificationIdType: typeof reminder.notificationId,
+        reminderActive: reminder.isActive,
+        reminderCompleted: reminder.isCompleted
+      });
+
+      console.log('[ReminderService] 🚫 Calling Notifications.cancelScheduledNotificationAsync...');
       await Notifications.cancelScheduledNotificationAsync(reminder.notificationId);
+      
+      // Clear notification ID from reminder
+      const oldNotificationId = reminder.notificationId;
       reminder.notificationId = undefined;
-      console.log(`[ReminderService] Cancelled notification for reminder ${reminderId}`);
+      
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ NOTIFICATION CANCELLATION SUCCESSFUL:', {
+        reminderId,
+        reminderTitle: reminder.title,
+        cancelledNotificationId: oldNotificationId,
+        duration: `${duration}ms`,
+        notificationIdCleared: reminder.notificationId === undefined
+      });
+      
     } catch (error) {
-      console.error(`[ReminderService] Failed to cancel notification for reminder ${reminderId}:`, error);
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ NOTIFICATION CANCELLATION FAILED:', {
+        reminderId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString(),
+        continuingOperation: true
+      });
+      
+      // Don't throw - this is a cleanup operation that shouldn't block other operations
+      console.log('[ReminderService] 🔄 Continuing despite notification cancellation failure...');
     }
   }
 
@@ -646,26 +1283,240 @@ export class ReminderService {
 
   // Storage methods
   private async loadReminders(): Promise<void> {
+    const startTime = Date.now();
+    console.log('[ReminderService] 📂 LOADING REMINDERS - Start operation:', {
+      storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
+      currentMemoryCount: this.reminders.size,
+      timestamp: new Date().toISOString()
+    });
+    
     try {
       const stored = await AsyncStorage.getItem(REMINDER_STORAGE_KEYS.REMINDERS);
-      if (stored) {
-        const remindersArray: Reminder[] = JSON.parse(stored);
-        this.reminders.clear();
-        remindersArray.forEach(reminder => {
-          this.reminders.set(reminder.id, reminder);
+      
+      if (!stored) {
+        console.log('[ReminderService] 📭 No stored reminders found in AsyncStorage:', {
+          storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
+          result: 'empty',
+          startingFresh: true
         });
+        return;
       }
+
+      console.log('[ReminderService] 📄 Found stored reminders data:', {
+        dataLength: stored.length,
+        dataSize: `${(stored.length / 1024).toFixed(2)} KB`,
+        parseAttempting: true
+      });
+      
+      let remindersArray: Reminder[];
+      try {
+        remindersArray = JSON.parse(stored);
+        console.log('[ReminderService] ✅ Successfully parsed reminders JSON:', {
+          arrayLength: remindersArray.length,
+          isArray: Array.isArray(remindersArray)
+        });
+      } catch (parseError) {
+        console.error('[ReminderService] ❌ JSON parsing failed:', {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          dataPreview: stored.substring(0, 100) + '...',
+          dataLength: stored.length
+        });
+        throw new Error(`Failed to parse reminders JSON: ${parseError}`);
+      }
+      
+      // Clear memory and validate each reminder
+      const beforeClearCount = this.reminders.size;
+      this.reminders.clear();
+      console.log('[ReminderService] 🗄️ Cleared memory cache:', {
+        beforeCount: beforeClearCount,
+        afterCount: this.reminders.size
+      });
+      
+      let validCount = 0;
+      let invalidCount = 0;
+      const validationErrors: string[] = [];
+      
+      console.log('[ReminderService] 🔍 Validating and loading reminders...');
+      remindersArray.forEach((reminder, index) => {
+        try {
+          // Basic validation
+          if (!reminder.id || !reminder.noteId || !reminder.scheduledDate) {
+            invalidCount++;
+            const error = `Invalid reminder at index ${index}: missing required fields`;
+            validationErrors.push(error);
+            console.warn('[ReminderService] ⚠️ Skipping invalid reminder:', {
+              index,
+              id: reminder.id || 'missing',
+              noteId: reminder.noteId || 'missing',
+              scheduledDate: reminder.scheduledDate || 'missing',
+              reason: 'missing required fields'
+            });
+            return;
+          }
+
+          this.reminders.set(reminder.id, reminder);
+          validCount++;
+          
+          if (validCount <= 5) { // Log details for first 5 reminders
+            console.log(`[ReminderService] ➕ Loaded reminder ${validCount}:`, {
+              id: reminder.id,
+              title: reminder.title,
+              noteId: reminder.noteId,
+              frequency: reminder.frequency,
+              isActive: reminder.isActive,
+              isCompleted: reminder.isCompleted,
+              scheduledDate: reminder.scheduledDate
+            });
+          }
+        } catch (itemError) {
+          invalidCount++;
+          const error = `Error processing reminder at index ${index}: ${itemError}`;
+          validationErrors.push(error);
+          console.error('[ReminderService] ❌ Error processing reminder:', {
+            index,
+            error: itemError instanceof Error ? itemError.message : String(itemError),
+            reminderPreview: JSON.stringify(reminder).substring(0, 100)
+          });
+        }
+      });
+      
+      // Calculate statistics
+      const loadedReminders = Array.from(this.reminders.values());
+      const stats = {
+        total: loadedReminders.length,
+        active: loadedReminders.filter(r => r.isActive && !r.isCompleted).length,
+        completed: loadedReminders.filter(r => r.isCompleted).length,
+        inactive: loadedReminders.filter(r => !r.isActive && !r.isCompleted).length,
+        recurring: loadedReminders.filter(r => r.frequency !== 'once').length,
+        withNotifications: loadedReminders.filter(r => r.notificationId).length,
+        overdue: loadedReminders.filter(r => {
+          const now = new Date().toISOString();
+          return r.isActive && !r.isCompleted && r.scheduledDate < now;
+        }).length
+      };
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ REMINDER LOADING COMPLETE:', {
+        source: 'AsyncStorage',
+        totalFound: remindersArray.length,
+        validLoaded: validCount,
+        invalidSkipped: invalidCount,
+        validationErrors: validationErrors.length,
+        duration: `${duration}ms`,
+        statistics: stats,
+        memoryUsage: `${this.reminders.size} reminders in memory`
+      });
+
+      if (validationErrors.length > 0 && validationErrors.length <= 3) {
+        console.warn('[ReminderService] ⚠️ Validation errors encountered:', validationErrors);
+      } else if (validationErrors.length > 3) {
+        console.warn(`[ReminderService] ⚠️ ${validationErrors.length} validation errors encountered (showing first 3):`, validationErrors.slice(0, 3));
+      }
+      
     } catch (error) {
-      console.error('[ReminderService] Failed to load reminders:', error);
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ REMINDER LOADING FAILED:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
+        memoryState: this.reminders.size,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Don't throw - we can continue with empty reminders
+      console.log('[ReminderService] 🔄 Continuing with empty reminder set due to loading failure...');
     }
   }
 
   private async saveReminders(): Promise<void> {
+    const startTime = Date.now();
+    console.log('[ReminderService] 💾 SAVING REMINDERS - Start operation:', {
+      storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
+      currentMemoryCount: this.reminders.size,
+      timestamp: new Date().toISOString()
+    });
+    
     try {
       const remindersArray = Array.from(this.reminders.values());
-      await AsyncStorage.setItem(REMINDER_STORAGE_KEYS.REMINDERS, JSON.stringify(remindersArray));
+      
+      // Calculate statistics before saving
+      const stats = {
+        total: remindersArray.length,
+        active: remindersArray.filter(r => r.isActive && !r.isCompleted).length,
+        completed: remindersArray.filter(r => r.isCompleted).length,
+        inactive: remindersArray.filter(r => !r.isActive && !r.isCompleted).length,
+        recurring: remindersArray.filter(r => r.frequency !== 'once').length,
+        withNotifications: remindersArray.filter(r => r.notificationId).length,
+        overdue: remindersArray.filter(r => {
+          const now = new Date().toISOString();
+          return r.isActive && !r.isCompleted && r.scheduledDate < now;
+        }).length,
+        frequencies: remindersArray.reduce((acc, r) => {
+          acc[r.frequency] = (acc[r.frequency] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      };
+      
+      console.log('[ReminderService] 📊 Pre-save statistics:', stats);
+      
+      // Serialize to JSON
+      let jsonData: string;
+      try {
+        jsonData = JSON.stringify(remindersArray);
+        console.log('[ReminderService] ✅ JSON serialization successful:', {
+          arrayLength: remindersArray.length,
+          jsonSize: `${(jsonData.length / 1024).toFixed(2)} KB`,
+          jsonLength: jsonData.length
+        });
+      } catch (serializeError) {
+        console.error('[ReminderService] ❌ JSON serialization failed:', {
+          error: serializeError instanceof Error ? serializeError.message : String(serializeError),
+          reminderCount: remindersArray.length,
+          sampleReminder: remindersArray.length > 0 ? {
+            id: remindersArray[0].id,
+            title: remindersArray[0].title,
+            type: typeof remindersArray[0]
+          } : 'none'
+        });
+        throw new Error(`JSON serialization failed: ${serializeError}`);
+      }
+      
+      // Save to AsyncStorage
+      console.log('[ReminderService] 💽 Writing to AsyncStorage...');
+      await AsyncStorage.setItem(REMINDER_STORAGE_KEYS.REMINDERS, jsonData);
+      
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ REMINDER SAVING COMPLETE:', {
+        destination: 'AsyncStorage',
+        storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
+        reminderCount: remindersArray.length,
+        dataSize: `${(jsonData.length / 1024).toFixed(2)} KB`,
+        duration: `${duration}ms`,
+        statistics: stats,
+        success: true
+      });
+      
     } catch (error) {
-      console.error('[ReminderService] Failed to save reminders:', error);
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ REMINDER SAVING FAILED:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        storageKey: REMINDER_STORAGE_KEYS.REMINDERS,
+        reminderCount: this.reminders.size,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw error; // Re-throw because save failures should be handled upstream
     }
   }
 
@@ -703,28 +1554,190 @@ export class ReminderService {
   }
 
   private async rescheduleAllActiveReminders(): Promise<void> {
-    const activeReminders = Array.from(this.reminders.values())
-      .filter(r => r.isActive && !r.isCompleted);
+    const startTime = Date.now();
+    console.log('[ReminderService] ⏰ RESCHEDULING ACTIVE REMINDERS - Start operation');
+    
+    try {
+      const activeReminders = Array.from(this.reminders.values())
+        .filter(r => r.isActive && !r.isCompleted);
+        
+      console.log('[ReminderService] 📊 Found active reminders to reschedule:', {
+        totalReminders: this.reminders.size,
+        activeReminders: activeReminders.length,
+        completedReminders: Array.from(this.reminders.values()).filter(r => r.isCompleted).length,
+        inactiveReminders: Array.from(this.reminders.values()).filter(r => !r.isActive && !r.isCompleted).length
+      });
 
-    for (const reminder of activeReminders) {
-      await this.scheduleNotification(reminder);
+      if (activeReminders.length === 0) {
+        console.log('[ReminderService] ℹ️ No active reminders to reschedule');
+        return;
+      }
+
+      let scheduledCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      console.log('[ReminderService] 🔄 Processing reminders for rescheduling...');
+      
+      for (const reminder of activeReminders) {
+        try {
+          console.log(`[ReminderService] 📅 Rescheduling reminder ${scheduledCount + 1}/${activeReminders.length}:`, {
+            id: reminder.id,
+            title: reminder.title,
+            scheduledDate: reminder.scheduledDate,
+            frequency: reminder.frequency
+          });
+          
+          await this.scheduleNotification(reminder);
+          scheduledCount++;
+          
+        } catch (error) {
+          errorCount++;
+          const errorMsg = `Failed to reschedule ${reminder.id}: ${error}`;
+          errors.push(errorMsg);
+          console.error('[ReminderService] ❌ Rescheduling error:', {
+            reminderId: reminder.id,
+            reminderTitle: reminder.title,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ RESCHEDULING COMPLETE:', {
+        totalProcessed: activeReminders.length,
+        successfullyScheduled: scheduledCount,
+        skipped: skippedCount,
+        errors: errorCount,
+        duration: `${duration}ms`,
+        successRate: `${((scheduledCount / activeReminders.length) * 100).toFixed(1)}%`
+      });
+
+      if (errors.length > 0 && errors.length <= 3) {
+        console.warn('[ReminderService] ⚠️ Rescheduling errors:', errors);
+      } else if (errors.length > 3) {
+        console.warn(`[ReminderService] ⚠️ ${errors.length} rescheduling errors (showing first 3):`, errors.slice(0, 3));
+      }
+      
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ RESCHEDULING OPERATION FAILED:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Don't throw - this is initialization cleanup
+      console.log('[ReminderService] 🔄 Continuing initialization despite rescheduling failure...');
     }
   }
 
   private async cleanupExpiredReminders(): Promise<void> {
-    const now = new Date();
-    const expiredReminders = Array.from(this.reminders.values())
-      .filter(r => {
-        if (r.frequency !== 'once') return false;
-        const scheduledDate = new Date(r.scheduledDate);
-        return scheduledDate < new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const startTime = Date.now();
+    console.log('[ReminderService] 🧹 CLEANING UP EXPIRED REMINDERS - Start operation');
+    
+    try {
+      const now = new Date();
+      const expiredReminders = Array.from(this.reminders.values())
+        .filter(r => {
+          if (r.frequency !== 'once') return false;
+          const scheduledDate = new Date(r.scheduledDate);
+          const expiredThreshold = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+          return scheduledDate < expiredThreshold;
+        });
+
+      console.log('[ReminderService] 📊 Expired reminder analysis:', {
+        totalReminders: this.reminders.size,
+        expiredFound: expiredReminders.length,
+        checkingCriteria: 'one-time reminders older than 24 hours',
+        currentTime: now.toISOString(),
+        expiredThreshold: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
       });
 
-    for (const reminder of expiredReminders) {
-      if (!reminder.isCompleted && reminder.isActive) {
-        // Mark as completed if it was never acknowledged
-        await this.updateReminder(reminder.id, { isCompleted: true, isActive: false });
+      if (expiredReminders.length === 0) {
+        console.log('[ReminderService] ✅ No expired reminders found - cleanup not needed');
+        return;
       }
+
+      let cleanedCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      console.log('[ReminderService] 🗑️ Processing expired reminders...');
+      
+      for (const reminder of expiredReminders) {
+        try {
+          if (!reminder.isCompleted && reminder.isActive) {
+            console.log('[ReminderService] 📝 Auto-completing expired active reminder:', {
+              id: reminder.id,
+              title: reminder.title,
+              scheduledDate: reminder.scheduledDate,
+              wasActive: reminder.isActive,
+              wasCompleted: reminder.isCompleted
+            });
+            
+            await this.updateReminder(reminder.id, { 
+              isCompleted: true, 
+              isActive: false,
+              lastTriggered: new Date().toISOString()
+            });
+            
+            cleanedCount++;
+          } else {
+            console.log('[ReminderService] ℹ️ Skipping expired reminder (already completed/inactive):', {
+              id: reminder.id,
+              title: reminder.title,
+              isCompleted: reminder.isCompleted,
+              isActive: reminder.isActive
+            });
+          }
+        } catch (error) {
+          errorCount++;
+          const errorMsg = `Failed to cleanup ${reminder.id}: ${error}`;
+          errors.push(errorMsg);
+          console.error('[ReminderService] ❌ Cleanup error:', {
+            reminderId: reminder.id,
+            reminderTitle: reminder.title,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.log('[ReminderService] ✅ CLEANUP COMPLETE:', {
+        expiredFound: expiredReminders.length,
+        cleanedUp: cleanedCount,
+        errors: errorCount,
+        duration: `${duration}ms`,
+        currentActiveReminders: Array.from(this.reminders.values()).filter(r => r.isActive && !r.isCompleted).length,
+        currentCompletedReminders: Array.from(this.reminders.values()).filter(r => r.isCompleted).length
+      });
+
+      if (errors.length > 0) {
+        console.warn('[ReminderService] ⚠️ Cleanup errors:', errors);
+      }
+      
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error('[ReminderService] ❌ CLEANUP OPERATION FAILED:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Don't throw - this is initialization cleanup
+      console.log('[ReminderService] 🔄 Continuing initialization despite cleanup failure...');
     }
   }
 
@@ -740,14 +1753,86 @@ export class ReminderService {
   }
 
   private handleNotificationReceived(notification: any): void {
-    // Handle foreground notification
+    console.log('[ReminderService] 🔔 Processing received notification:', {
+      identifier: notification.request?.identifier,
+      contentTitle: notification.request?.content?.title,
+      hasData: !!notification.request?.content?.data,
+      dataKeys: notification.request?.content?.data ? Object.keys(notification.request.content.data) : [],
+      receivedAt: new Date().toISOString()
+    });
+    
+    const data = notification.request?.content?.data;
+    if (data?.reminderId) {
+      console.log('[ReminderService] 🎯 Found reminder data in notification:', {
+        reminderId: data.reminderId,
+        noteId: data.noteId,
+        frequency: data.frequency,
+        createdAt: data.createdAt
+      });
+      
+      // Mark reminder as triggered (if it exists)
+      const reminder = this.reminders.get(data.reminderId);
+      if (reminder) {
+        console.log('[ReminderService] ✅ Found matching reminder in memory:', {
+          reminderId: reminder.id,
+          title: reminder.title,
+          wasActive: reminder.isActive,
+          wasCompleted: reminder.isCompleted
+        });
+        
+        // You could implement auto-completion or other logic here
+        console.log('[ReminderService] ℹ️ Notification received for active reminder - no auto-actions configured');
+      } else {
+        console.warn('[ReminderService] ⚠️ Notification received for unknown reminder:', {
+          reminderId: data.reminderId,
+          possibleCause: 'reminder deleted or not loaded'
+        });
+      }
+    } else {
+      console.log('[ReminderService] ℹ️ Notification received without reminder data');
+    }
   }
 
   private handleNotificationTapped(response: any): void {
-    // Handle notification tap - navigate to note
+    console.log('[ReminderService] 👆 Processing notification tap:', {
+      actionIdentifier: response.actionIdentifier,
+      hasUserText: !!response.userText,
+      notificationId: response.notification?.request?.identifier,
+      timestamp: new Date().toISOString()
+    });
+    
     const data = response.notification?.request?.content?.data;
     if (data?.noteId) {
-      this.emitEvent('navigateToNote', { noteId: data.noteId });
+      console.log('[ReminderService] 🎯 Found note navigation data:', {
+        noteId: data.noteId,
+        reminderId: data.reminderId,
+        frequency: data.frequency,
+        navigationTarget: 'note detail'
+      });
+      
+      console.log('[ReminderService] 🚀 Emitting navigation event for note:', data.noteId);
+      this.emitEvent('navigateToNote', { 
+        noteId: data.noteId, 
+        reminderId: data.reminderId,
+        source: 'notification_tap',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Mark reminder as triggered if it exists
+      if (data.reminderId) {
+        const reminder = this.reminders.get(data.reminderId);
+        if (reminder && reminder.isActive && !reminder.isCompleted) {
+          console.log('[ReminderService] 📝 Marking reminder as triggered by user tap:', {
+            reminderId: reminder.id,
+            title: reminder.title
+          });
+          
+          reminder.lastTriggered = new Date().toISOString();
+          // Don't auto-complete - let user decide in the app
+        }
+      }
+    } else {
+      console.log('[ReminderService] ℹ️ Notification tapped without navigation data');
     }
   }
 

@@ -12,11 +12,6 @@ import { v4 as uuid } from 'uuid';
 import { Colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/RootStack';
 import { formatDateToLocal, getTodayLocal } from '../utils/dateUtils';
-import { Note } from '../types/Note';
-import { v4 as uuid } from 'uuid';
-import { Colors } from '../theme/colors';
-import { RootStackParamList } from '../navigation/RootStack';
-import { formatDateToLocal, getTodayLocal } from '../utils/dateUtils';
 
 type NewNoteScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewNote'>;
 type NewNoteScreenRouteProp = RouteProp<RootStackParamList, 'NewNote'>;
@@ -27,6 +22,8 @@ export const NewNoteScreen: React.FC = () => {
   const [tags, setTags] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [parentNote, setParentNote] = useState<Note | null>(null);
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [savedNote, setSavedNote] = useState<Note | null>(null);
   
   const navigation = useNavigation<NewNoteScreenNavigationProp>();
   const route = useRoute<NewNoteScreenRouteProp>();
@@ -85,9 +82,13 @@ export const NewNoteScreen: React.FC = () => {
     };
     
     try {
+      let savedNoteId: string;
+      
       if (isSubNote && parentNoteId) {
         // Create sub-note
-        await createSubNote(parentNoteId, noteData);
+        const createdSubNote = await createSubNote(parentNoteId, noteData);
+        savedNoteId = createdSubNote.id;
+        console.log('[NewNoteScreen] ✅ Created sub-note:', savedNoteId);
       } else {
         // Create regular note
         const note: Note = {
@@ -99,6 +100,9 @@ export const NewNoteScreen: React.FC = () => {
           imageUris: imageUris.length > 0 ? imageUris : undefined,
         };
         await addNote(note);
+        savedNoteId = note.id;
+        setSavedNote(note);
+        console.log('[NewNoteScreen] ✅ Created note:', savedNoteId);
       }
       
       // Update tag cache if note has tags
@@ -109,7 +113,7 @@ export const NewNoteScreen: React.FC = () => {
       
       navigation.goBack();
     } catch (error) {
-      console.error('Error saving note:', error);
+      console.error('[NewNoteScreen] ❌ Error saving note:', error);
       Alert.alert('Hata', 'Not kaydedilirken bir hata oluştu');
     }
   }, [title, content, tags, imageUris, selectedDate, navigation, isSubNote, parentNoteId]);
@@ -128,15 +132,31 @@ export const NewNoteScreen: React.FC = () => {
   const setupHeaderButtons = () => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity 
-          onPress={save} 
-          style={[styles.headerButton, !content.trim() && styles.headerButtonDisabled]}
-          disabled={!content.trim()}
-        >
-          <Text style={[styles.headerButtonText, !content.trim() && styles.headerButtonTextDisabled]}>
-            Kaydet
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          {/* Reminder Button - only show if note has content */}
+          {content.trim() && (
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('[NewNoteScreen] 🔔 Reminder button pressed');
+                setShowReminderForm(true);
+              }}
+              style={[styles.headerButton, { marginRight: 8 }]}
+            >
+              <Text style={styles.headerButtonText}>🔔</Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Save Button */}
+          <TouchableOpacity 
+            onPress={save} 
+            style={[styles.headerButton, !content.trim() && styles.headerButtonDisabled]}
+            disabled={!content.trim()}
+          >
+            <Text style={[styles.headerButtonText, !content.trim() && styles.headerButtonTextDisabled]}>
+              Kaydet
+            </Text>
+          </TouchableOpacity>
+        </View>
       ),
     });
   };
@@ -182,71 +202,94 @@ export const NewNoteScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.form}>
-        {/* Parent Note Context - only show for sub-notes */}
-        {isSubNote && parentNote && (
-          <View style={styles.parentContext}>
-            <Text style={styles.parentContextLabel}>Ana Not:</Text>
-            <Text style={styles.parentContextTitle} numberOfLines={2}>
-              {parentNote.title || 'Başlıksız Not'}
-            </Text>
-          </View>
-        )}
-
-        <TextInput
-          style={styles.titleInput}
-          placeholder={isSubNote ? "Alt not başlığı (isteğe bağlı)" : "Başlık (isteğe bağlı)"}
-          placeholderTextColor={Colors.neutral.darkGray}
-          value={title}
-          onChangeText={setTitle}
-          maxLength={100}
-        />
-
-        <TextInput
-          style={styles.contentInput}
-          placeholder={isSubNote ? "Alt not içeriğini buraya yazın..." : "Bugün neler yaşandı?"}
-          placeholderTextColor={Colors.neutral.darkGray}
-          value={content}
-          onChangeText={setContent}
-          multiline
-          textAlignVertical="top"
-          autoFocus
-        />
-
-        <TextInput
-          style={styles.tagsInput}
-          placeholder="Etiketler (örn: #iş #önemli #fikir)"
-          placeholderTextColor={Colors.neutral.darkGray}
-          value={tags}
-          onChangeText={setTags}
-        />
-
-        <View style={styles.imageSection}>
-          {imageUris.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
-              {imageUris.map((uri, index) => (
-                <View key={index} style={styles.imageContainer}>
-                  <Image source={{ uri }} style={styles.image} contentFit="cover" />
-                  <TouchableOpacity 
-                    style={styles.removeImageButton} 
-                    onPress={() => removeImage(index)}
-                  >
-                    <Text style={styles.removeImageText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
+    <>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.form}>
+          {/* Parent Note Context - only show for sub-notes */}
+          {isSubNote && parentNote && (
+            <View style={styles.parentContext}>
+              <Text style={styles.parentContextLabel}>Ana Not:</Text>
+              <Text style={styles.parentContextTitle} numberOfLines={2}>
+                {parentNote.title || 'Başlıksız Not'}
+              </Text>
+            </View>
           )}
-          
-          <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-            <Text style={styles.addImageText}>
-              📷 {imageUris.length > 0 ? 'Fotoğraf Ekle' : 'Fotoğraf Ekle'}
-            </Text>
-          </TouchableOpacity>
+
+          <TextInput
+            style={styles.titleInput}
+            placeholder={isSubNote ? "Alt not başlığı (isteğe bağlı)" : "Başlık (isteğe bağlı)"}
+            placeholderTextColor={Colors.neutral.darkGray}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={100}
+          />
+
+          <TextInput
+            style={styles.contentInput}
+            placeholder={isSubNote ? "Alt not içeriğini buraya yazın..." : "Bugün neler yaşandı?"}
+            placeholderTextColor={Colors.neutral.darkGray}
+            value={content}
+            onChangeText={setContent}
+            multiline
+            textAlignVertical="top"
+            autoFocus
+          />
+
+          <TextInput
+            style={styles.tagsInput}
+            placeholder="Etiketler (örn: #iş #önemli #fikir)"
+            placeholderTextColor={Colors.neutral.darkGray}
+            value={tags}
+            onChangeText={setTags}
+          />
+
+          <View style={styles.imageSection}>
+            {imageUris.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
+                {imageUris.map((uri, index) => (
+                  <View key={index} style={styles.imageContainer}>
+                    <Image source={{ uri }} style={styles.image} contentFit="cover" />
+                    <TouchableOpacity 
+                      style={styles.removeImageButton} 
+                      onPress={() => removeImage(index)}
+                    >
+                      <Text style={styles.removeImageText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            
+            <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+              <Text style={styles.addImageText}>
+                📷 {imageUris.length > 0 ? 'Fotoğraf Ekle' : 'Fotoğraf Ekle'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* Reminder Form Modal - only show if note has content and savedNote exists */}
+      {showReminderForm && savedNote && (
+        <ReminderForm
+          note={savedNote}
+          visible={showReminderForm}
+          editingReminder={undefined}
+          onSave={(reminder) => {
+            console.log('[NewNoteScreen] ✅ Reminder created:', reminder);
+            setShowReminderForm(false);
+            Alert.alert('Başarılı', 'Hatırlatıcı oluşturuldu!', [
+              { text: 'Tamam', onPress: () => navigation.goBack() }
+            ]);
+          }}
+          onCancel={() => {
+            console.log('[NewNoteScreen] ❌ Reminder cancelled');
+            setShowReminderForm(false);
+            navigation.goBack();
+          }}
+        />
+      )}
+    </>
   );
 };
 

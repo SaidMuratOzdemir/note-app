@@ -14,6 +14,18 @@ export const Typography = {
     color: Colors.neutral.darkGray,
     lineHeight: 30 
   },
+  h3: { 
+    fontSize: 20, 
+    fontWeight: '600' as const, 
+    color: Colors.neutral.darkGray,
+    lineHeight: 26 
+  },
+  h4: { 
+    fontSize: 18, 
+    fontWeight: '600' as const, 
+    color: Colors.neutral.darkGray,
+    lineHeight: 24 
+  },
   
   // Body text
   body: { 
