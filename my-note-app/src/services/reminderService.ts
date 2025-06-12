@@ -117,11 +117,19 @@ export class ReminderService {
    * Create a new reminder with validation and smart features
    */
   async createReminder(data: ReminderCreationData): Promise<Reminder> {
+    console.log('[ReminderService] 🆕 Creating reminder:', {
+      noteId: data.noteId,
+      title: data.title,
+      scheduledDate: data.scheduledDate,
+      frequency: data.frequency
+    });
+    
     await this.ensureInitialized();
     
     // Validation
     await this.validateReminderCreation(data);
-    
+    console.log('[ReminderService] ✅ Validation passed');
+
     const reminder: Reminder = {
       id: this.generateUniqueId('reminder'),
       noteId: data.noteId,
@@ -138,10 +146,12 @@ export class ReminderService {
     // Calculate next trigger for recurring reminders
     if (reminder.frequency !== 'once') {
       reminder.nextTrigger = this.calculateNextTrigger(reminder);
+      console.log('[ReminderService] 🔄 Calculated next trigger:', reminder.nextTrigger);
     }
 
     // Store in memory and schedule notification
     this.reminders.set(reminder.id, reminder);
+    console.log('[ReminderService] 💾 Stored reminder in memory, total count:', this.reminders.size);
     
     if (reminder.isActive && !reminder.isCompleted) {
       await this.scheduleNotification(reminder);
@@ -152,7 +162,7 @@ export class ReminderService {
     this.notifyListeners();
     this.invalidateAnalyticsCache();
 
-    console.log(`[ReminderService] Created reminder: ${reminder.id} for note: ${reminder.noteId}`);
+    console.log('[ReminderService] ✅ Created reminder successfully:', reminder.id);
     return reminder;
   }
 
@@ -194,10 +204,13 @@ export class ReminderService {
    * Update an existing reminder with validation
    */
   async updateReminder(reminderId: string, updates: Partial<Reminder>): Promise<Reminder> {
+    console.log('[ReminderService] 🔄 Updating reminder:', reminderId, updates);
+    
     await this.ensureInitialized();
     
     const existingReminder = this.reminders.get(reminderId);
     if (!existingReminder) {
+      console.error('[ReminderService] ❌ Reminder not found:', reminderId);
       throw new Error(`Reminder not found: ${reminderId}`);
     }
 
@@ -214,6 +227,7 @@ export class ReminderService {
       updatedReminder.nextTrigger = updatedReminder.frequency !== 'once' 
         ? this.calculateNextTrigger(updatedReminder)
         : undefined;
+      console.log('[ReminderService] 🔄 Recalculated next trigger:', updatedReminder.nextTrigger);
     }
 
     // Update storage and reschedule notification
