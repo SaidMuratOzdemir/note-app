@@ -186,6 +186,8 @@ export const ReminderForm: React.FC<ReminderFormProps> = ({
 
     setIsLoading(true);
     try {
+      // Use ISO string directly - the date picker already handles local timezone correctly
+      // The backend/notification system will handle timezone conversion as needed
       const reminderData: ReminderCreationData = {
         noteId: note.id,
         title: title.trim(),
