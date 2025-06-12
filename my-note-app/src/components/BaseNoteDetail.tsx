@@ -29,7 +29,7 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
   showHeaderButtons = true,
 }) => {
   const [showReminderForm, setShowReminderForm] = useState(false);
-  const [editingReminder, setEditingReminder] = useState<any>(undefined);
+  const [editingReminder, setEditingReminder] = useState<any>(undefined); // TODO: Define proper Reminder type
   
   const navigation = useNavigation<BaseNoteDetailNavigationProp>();
   const scrollViewRef = useRef<ScrollView>(null);

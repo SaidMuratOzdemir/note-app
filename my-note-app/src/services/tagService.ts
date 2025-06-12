@@ -241,7 +241,27 @@ export class TagService {
     try {
       const cacheData = await AsyncStorage.getItem(CACHE_KEYS.TAG_ANALYTICS);
       if (cacheData) {
-        this.cache = JSON.parse(cacheData);
+        try {
+          const parsed = JSON.parse(cacheData);
+          
+          // Validate parsed data structure
+          if (parsed && typeof parsed === 'object' && 
+              Array.isArray(parsed.topTags) && 
+              typeof parsed.totalTags === 'number' &&
+              typeof parsed.totalNotes === 'number' &&
+              typeof parsed.lastUpdate === 'string') {
+            this.cache = parsed;
+            console.log('[TagService] Cache loaded successfully');
+          } else {
+            console.warn('[TagService] Invalid cache format, clearing cache');
+            await AsyncStorage.removeItem(CACHE_KEYS.TAG_ANALYTICS);
+            this.cache = null;
+          }
+        } catch (parseError) {
+          console.error('[TagService] Failed to parse cache data, clearing cache:', parseError);
+          await AsyncStorage.removeItem(CACHE_KEYS.TAG_ANALYTICS);
+          this.cache = null;
+        }
       }
     } catch (error) {
       console.error('[TagService] Failed to load cache:', error);

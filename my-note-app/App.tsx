@@ -37,6 +37,17 @@ export default function App() {
     };
 
     initializeServices();
+
+    // Cleanup function for app unmount (important for testing/memory management)
+    return () => {
+      try {
+        const reminderService = ReminderService.getInstance();
+        reminderService.cleanup();
+        console.log('[App] Cleanup completed successfully');
+      } catch (error) {
+        console.error('[App] Cleanup failed:', error);
+      }
+    };
   }, []);
 
   return <RootStack />;

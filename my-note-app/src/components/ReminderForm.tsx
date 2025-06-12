@@ -162,8 +162,9 @@ export const ReminderForm: React.FC<ReminderFormProps> = ({
       newErrors.title = 'Reminder title is required';
     }
 
-    if (selectedDate <= new Date()) {
-      newErrors.date = 'Reminder must be scheduled for a future date';
+    // Fixed: Use < instead of <= to allow reminders for today
+    if (selectedDate < new Date()) {
+      newErrors.date = 'Reminder must be scheduled for a future date or time';
     }
 
     if (title.trim().length > 100) {

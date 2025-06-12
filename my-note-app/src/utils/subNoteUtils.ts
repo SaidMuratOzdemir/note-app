@@ -46,16 +46,26 @@ export class SubNoteUtils {
    */
   static getNotePath(note: Note, allNotes: Note[]): Note[] {
     const path: Note[] = [];
+    const maxDepth = 10; // Prevent stack overflow
+    let currentDepth = 0;
     
     // Recursively build path from note to root
     const buildPath = (currentNote: Note) => {
+      if (currentDepth >= maxDepth) {
+        console.warn(`[SubNoteUtils] Max depth reached for note: ${currentNote.id}`);
+        return;
+      }
+      
       path.unshift(currentNote);
+      currentDepth++;
+      
       if (currentNote.parentId) {
         const parent = allNotes.find(n => n.id === currentNote.parentId);
         if (parent) {
           buildPath(parent);
         }
       }
+      currentDepth--;
     };
     
     buildPath(note);
@@ -81,16 +91,27 @@ export class SubNoteUtils {
 
   /**
    * Get all descendant notes (children, grandchildren, etc.)
+   * Protected against infinite recursion with cycle detection
    */
   static getAllDescendants(parentId: string, allNotes: Note[]): Note[] {
     const descendants: Note[] = [];
+    const visited = new Set<string>(); // Cycle detection
     
     const findDescendants = (currentParentId: string) => {
+      // Prevent infinite recursion
+      if (visited.has(currentParentId)) {
+        console.warn(`[SubNoteUtils] Circular reference detected for note: ${currentParentId}`);
+        return;
+      }
+      visited.add(currentParentId);
+      
       const children = allNotes.filter(note => note.parentId === currentParentId);
       for (const child of children) {
         descendants.push(child);
         findDescendants(child.id); // Recursively find sub-children
       }
+      
+      visited.delete(currentParentId); // Clean up for other branches
     };
     
     findDescendants(parentId);

@@ -16,9 +16,10 @@ import { getNotes } from '../services/storage';
 import { Note } from '../types/Note';
 import { Colors, Typography, Layout } from '../theme';
 import { EmptyState } from '../components/EmptyState';
+import { RootStackParamList } from '../navigation/RootStack';
 
 interface AllTagsScreenProps {
-  navigation: NavigationProp<any>;
+  navigation: NavigationProp<RootStackParamList>;
 }
 
 interface TagData {

@@ -75,6 +75,27 @@ export class ReminderService {
   }
 
   /**
+   * Cleanup all timers and listeners (for testing/memory management)
+   */
+  public cleanup(): void {
+    console.log('[ReminderService] 🧹 Cleaning up timers and listeners...');
+    
+    // Clear debounce timer
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+    
+    // Clear all listeners
+    this.listeners.clear();
+    
+    // Reset initialization state
+    this.isInitialized = false;
+    
+    console.log('[ReminderService] ✅ Cleanup completed');
+  }
+
+  /**
    * Initialize the service and load existing data
    * Must be called before using any other methods
    */
@@ -1013,13 +1034,25 @@ export class ReminderService {
             : `${secondsUntilTrigger}s`
       });
       
-      // TODO: Fix notification trigger type - using null for immediate testing
-      // Need to find the correct expo-notifications trigger format for version 0.31.3
-      console.log('[ReminderService] 🚨 IMPORTANT: Using immediate trigger (null) for testing - implement proper scheduling!');
+      // Prepare proper notification trigger
+      let trigger: any = null;
+      
+      if (secondsUntilTrigger > 1) {
+        trigger = { seconds: secondsUntilTrigger };
+      } else {
+        // For past dates or very near future (< 1 second), trigger immediately
+        trigger = null;
+      }
+      
+      console.log('[ReminderService] 📅 Using notification trigger:', {
+        triggerType: trigger ? 'scheduled' : 'immediate',
+        trigger,
+        scheduledForFuture: secondsUntilTrigger > 1
+      });
       
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: notificationContent,
-        trigger: null, // Immediate notification for now
+        trigger,
       });
 
       // Store notification ID for later cancellation
@@ -1521,14 +1554,24 @@ export class ReminderService {
   }
 
   private async debouncedSave(): Promise<void> {
+    // Clear existing timer
     if (this.saveDebounceTimer) {
       clearTimeout(this.saveDebounceTimer);
     }
     
-    this.saveDebounceTimer = setTimeout(async () => {
-      await this.saveReminders();
-      this.saveDebounceTimer = null;
-    }, 1000);
+    // Create new promise-based timer to prevent race conditions
+    return new Promise((resolve, reject) => {
+      this.saveDebounceTimer = setTimeout(async () => {
+        try {
+          await this.saveReminders();
+          this.saveDebounceTimer = null;
+          resolve();
+        } catch (error) {
+          this.saveDebounceTimer = null;
+          reject(error);
+        }
+      }, 1000);
+    });
   }
 
   private async loadConfig(): Promise<void> {
@@ -1741,6 +1784,49 @@ export class ReminderService {
     }
   }
 
+  /**
+   * Delete all reminders for a specific note
+   */
+  async deleteRemindersForNote(noteId: string): Promise<void> {
+    console.log('[ReminderService] 🗑️ Starting delete operation for all reminders of note:', noteId);
+    
+    await this.ensureInitialized();
+    
+    const noteReminders = Array.from(this.reminders.values())
+      .filter(r => r.noteId === noteId);
+    
+    if (noteReminders.length === 0) {
+      console.log('[ReminderService] ℹ️ No reminders found for note:', noteId);
+      return;
+    }
+
+    console.log('[ReminderService] 📊 Found reminders to delete:', {
+      noteId,
+      reminderCount: noteReminders.length,
+      reminderIds: noteReminders.map(r => r.id)
+    });
+
+    // Delete each reminder
+    for (const reminder of noteReminders) {
+      try {
+        await this.deleteReminder(reminder.id);
+        console.log('[ReminderService] ✅ Deleted reminder:', {
+          id: reminder.id,
+          title: reminder.title
+        });
+      } catch (error) {
+        console.error('[ReminderService] ❌ Failed to delete reminder:', {
+          id: reminder.id,
+          title: reminder.title,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        // Continue with other reminders even if one fails
+      }
+    }
+
+    console.log('[ReminderService] ✅ Completed deletion of all reminders for note:', noteId);
+  }
+
   // Event handling
   private notifyListeners(): void {
     const allReminders = Array.from(this.reminders.values());
@@ -1950,9 +2036,17 @@ export class ReminderService {
   // Public API for listeners
   public addListener(id: string, callback: (reminders: Reminder[]) => void): void {
     this.listeners.set(id, callback);
+    console.log(`[ReminderService] 📡 Added listener: ${id}, total: ${this.listeners.size}`);
   }
 
   public removeListener(id: string): void {
-    this.listeners.delete(id);
+    const removed = this.listeners.delete(id);
+    console.log(`[ReminderService] 🗑️ Removed listener: ${id}, success: ${removed}, remaining: ${this.listeners.size}`);
+  }
+
+  public clearAllListeners(): void {
+    const count = this.listeners.size;
+    this.listeners.clear();
+    console.log(`[ReminderService] 🧹 Cleared all ${count} listeners`);
   }
 }

@@ -6,8 +6,45 @@ import { v4 as uuid } from 'uuid';
 const NOTES_KEY = 'notes';
 
 export async function getNotes(): Promise<Note[]> {
-  const json = await AsyncStorage.getItem(NOTES_KEY);
-  return json ? JSON.parse(json) : [];
+  try {
+    const json = await AsyncStorage.getItem(NOTES_KEY);
+    if (!json) return [];
+    
+    const parsed = JSON.parse(json);
+    
+    // Type validation - ensure it's an array
+    if (!Array.isArray(parsed)) {
+      console.error('[Storage] Invalid data format - not an array, resetting to empty');
+      await AsyncStorage.removeItem(NOTES_KEY);
+      return [];
+    }
+    
+    // Validate each note has required fields
+    const validNotes = parsed.filter((note: any) => {
+      if (!note.id || !note.createdAt) {
+        console.warn('[Storage] Skipping invalid note:', note);
+        return false;
+      }
+      return true;
+    });
+    
+    return validNotes;
+  } catch (error) {
+    console.error('[Storage] Failed to parse notes JSON:', error);
+    // Backup corrupted data and reset
+    try {
+      const corruptedData = await AsyncStorage.getItem(NOTES_KEY);
+      if (corruptedData) {
+        await AsyncStorage.setItem(`${NOTES_KEY}_corrupted_${Date.now()}`, corruptedData);
+        console.log('[Storage] Backed up corrupted data');
+      }
+    } catch (backupError) {
+      console.error('[Storage] Failed to backup corrupted data:', backupError);
+    }
+    
+    await AsyncStorage.removeItem(NOTES_KEY);
+    return [];
+  }
 }
 
 export async function saveNotes(notes: Note[]): Promise<void> {
@@ -35,9 +72,25 @@ export async function updateNote(note: Note): Promise<void> {
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  const notes = await getNotes();
-  const filtered = notes.filter(n => n.id !== id);
-  await saveNotes(filtered);
+  try {
+    const notes = await getNotes();
+    const filtered = notes.filter(n => n.id !== id);
+    await saveNotes(filtered);
+
+    // Clean up reminders for deleted note
+    try {
+      const { ReminderService } = await import('./reminderService');
+      const reminderService = ReminderService.getInstance();
+      await reminderService.deleteRemindersForNote(id);
+      console.log(`[Storage] Cleaned up reminders for deleted note: ${id}`);
+    } catch (reminderError) {
+      console.warn(`[Storage] Failed to clean up reminders for note ${id}:`, reminderError);
+      // Don't throw here - note deletion should succeed even if reminder cleanup fails
+    }
+  } catch (error) {
+    console.error('Error in deleteNote:', error);
+    throw error;
+  }
 }
 
 // SUB-NOTES SPECIFIC FUNCTIONS

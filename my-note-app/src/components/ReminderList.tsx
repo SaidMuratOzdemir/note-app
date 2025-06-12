@@ -87,7 +87,7 @@ export const ReminderList: React.FC<ReminderListProps> = ({
     return () => {
       reminderService.removeListener(listenerId);
     };
-  }, [noteId, reminderService]);
+  }, [noteId]); // Remove reminderService dependency to prevent re-render loop
 
   /**
    * Load reminders from service
