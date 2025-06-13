@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Layout } from '../theme';
 import { Note } from '../types/Note';
+import { formatTimeOnly } from '../utils/dateUtils';
 
 interface SubNoteCardProps {
   note: Note;
@@ -19,15 +20,6 @@ export const SubNoteCard: React.FC<SubNoteCardProps> = ({
   onLongPress 
 }) => {
   const hasImages = note.imageUris && note.imageUris.length > 0;
-  
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('tr-TR', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
   
   return (
     <TouchableOpacity 
@@ -47,7 +39,7 @@ export const SubNoteCard: React.FC<SubNoteCardProps> = ({
             {parentNote.title || 'Ana Not'}
           </Text>
         </View>
-        <Text style={styles.timestamp}>{formatTime(note.createdAt)}</Text>
+        <Text style={styles.timestamp}>{formatTimeOnly(note.createdAt)}</Text>
       </View>
       
       {/* Sub-note title */}
@@ -211,3 +203,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 });
+
+export default React.memo(SubNoteCard);

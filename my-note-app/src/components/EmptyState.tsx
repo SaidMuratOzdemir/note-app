@@ -53,3 +53,5 @@ const styles = StyleSheet.create({
     color: Colors.neutral.darkGray,
   },
 });
+
+export default React.memo(EmptyState);

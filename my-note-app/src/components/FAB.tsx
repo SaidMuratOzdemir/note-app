@@ -53,3 +53,5 @@ const styles = StyleSheet.create({
     elevation: Layout.elevation.high,
   },
 });
+
+export default React.memo(FAB);

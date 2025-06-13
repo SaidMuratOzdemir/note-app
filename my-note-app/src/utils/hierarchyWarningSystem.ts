@@ -1,10 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Alert } from 'react-native';
 import { Note } from '../types/Note';
-import { SubNoteUtils, HIERARCHY_CONFIG, HierarchyStats, CanCreateResult } from '../utils/subNoteUtils';
-import { Colors, Typography, Layout } from '../theme';
-import { logger } from '../utils/logger';
+import { SubNoteUtils, HIERARCHY_CONFIG, CanCreateResult } from '../utils/subNoteUtils';
 
 export interface HierarchyWarningOptions {
   showDepthWarnings: boolean;
@@ -58,7 +54,6 @@ export class HierarchyWarningSystem {
         { text: 'İptal', style: 'cancel' as const, onPress: onCancel },
         { text: 'Devam Et', onPress: onProceed }
       ];
-
       Alert.alert(title, message, buttons);
     } else {
       // No warning needed, proceed directly
@@ -207,7 +202,7 @@ export class HierarchyWarningSystem {
         message,
         [
           { 
-            text: 'Detayları Gör', 
+            text: 'Detayları Gör',
             onPress: () => {
               this.showHierarchyDetails(validation, parentNote);
               resolve({
@@ -219,8 +214,8 @@ export class HierarchyWarningSystem {
             }
           },
           { 
-            text: 'İptal', 
-            style: 'cancel', 
+            text: 'İptal',
+            style: 'cancel',
             onPress: () => resolve({
               canProceed: false,
               userConfirmed: false,
@@ -229,7 +224,7 @@ export class HierarchyWarningSystem {
             })
           },
           { 
-            text: 'Devam Et', 
+            text: 'Devam Et',
             onPress: () => resolve({
               canProceed: true,
               userConfirmed: true,
@@ -348,122 +343,4 @@ export class HierarchyWarningSystem {
   }
 }
 
-/**
- * React component for displaying hierarchy warnings inline
- */
-interface HierarchyWarningIndicatorProps {
-  note: Note;
-  allNotes: Note[];
-  showDetails?: boolean;
-  compact?: boolean;
-}
-
-export const HierarchyWarningIndicator: React.FC<HierarchyWarningIndicatorProps> = ({
-  note,
-  allNotes,
-  showDetails = true,
-  compact = false
-}) => {
-  const stats = SubNoteUtils.getHierarchyStats(note.id, allNotes);
-  const validation = SubNoteUtils.canCreateSubNote(note.id, allNotes);
-  
-  if (stats.performance === 'good' && validation.isValid) {
-    return null; // No warnings to show
-  }
-
-  const getWarningIcon = () => {
-    if (stats.performance === 'critical' || !validation.isValid) return '🔴';
-    if (stats.performance === 'warning') return '⚠️';
-    return '🟡';
-  };
-
-  const getWarningText = () => {
-    if (!validation.isValid) return 'Hata';
-    if (stats.performance === 'critical') return 'Kritik';
-    if (stats.performance === 'warning') return 'Uyarı';
-    return 'Dikkat';
-  };
-
-  const handlePress = () => {
-    if (!showDetails) return;
-    
-    HierarchyWarningSystem.checkHierarchyHealth(allNotes);
-  };
-
-  if (compact) {
-    return (
-      <TouchableOpacity 
-        style={styles.compactIndicator} 
-        onPress={handlePress}
-        disabled={!showDetails}
-      >
-        <Text style={styles.warningIcon}>{getWarningIcon()}</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  return (
-    <TouchableOpacity 
-      style={[
-        styles.warningContainer,
-        stats.performance === 'critical' && styles.criticalWarning
-      ]} 
-      onPress={handlePress}
-      disabled={!showDetails}
-    >
-      <Text style={styles.warningIcon}>{getWarningIcon()}</Text>
-      <Text style={styles.warningText}>{getWarningText()}</Text>
-      {showDetails && (
-        <Ionicons 
-          name="information-circle-outline" 
-          size={16} 
-          color={Colors.neutral.darkGray} 
-          style={styles.infoIcon} 
-        />
-      )}
-    </TouchableOpacity>
-  );
-};
-
-const styles = StyleSheet.create({
-  warningContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: Colors.warning + '20',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.warning + '40',
-  },
-  criticalWarning: {
-    backgroundColor: Colors.error + '20',
-    borderColor: Colors.error + '40',
-  },
-  warningIcon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  warningText: {
-    ...Typography.caption,
-    color: Colors.warning,
-    fontWeight: '600',
-    marginRight: 4,
-  },
-  infoIcon: {
-    marginLeft: 2,
-  },
-  compactIndicator: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.neutral.white,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-});
+export default HierarchyWarningSystem;

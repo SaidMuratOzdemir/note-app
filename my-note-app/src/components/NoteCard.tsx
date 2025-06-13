@@ -7,6 +7,7 @@ import { Colors, Typography, Layout } from '../theme';
 import { SubNoteBadge } from './SubNoteBadge';
 import { SubNoteUtils, HIERARCHY_CONFIG } from '../utils/subNoteUtils';
 import { useHierarchyPerformance } from '../utils/hierarchyPerformanceOptimizer';
+import { formatTimeOnly } from '../utils/dateUtils';
 
 type HierarchyContext = 'tree' | 'list' | 'flat';
 
@@ -40,15 +41,6 @@ export const NoteCard: React.FC<Props> = ({
   maxDepthDisplay = HIERARCHY_CONFIG.MAX_DEPTH,
 }) => {
   const performance = useHierarchyPerformance();
-  
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('tr-TR', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
 
   // Memoize expensive hierarchy calculations
   const hierarchyInfo = useMemo(() => {
@@ -127,7 +119,7 @@ export const NoteCard: React.FC<Props> = ({
       {/* Header: Title + Timestamp */}
       <View style={styles.header}>
         {note.title && <Text style={styles.title}>{note.title}</Text>}
-        <Text style={styles.timestamp}>{formatTime(note.createdAt)}</Text>
+        <Text style={styles.timestamp}>{formatTimeOnly(note.createdAt)}</Text>
       </View>
       
       {/* Images Section */}
@@ -306,3 +298,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
+export default React.memo(NoteCard);

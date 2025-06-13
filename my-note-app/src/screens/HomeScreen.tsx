@@ -5,14 +5,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
 import { Reminder } from '../types/Reminder';
-import { getNotes, getSubNoteCount } from '../services/storage';
+import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { FAB } from '../components/FAB';
 import { EmptyState } from '../components/EmptyState';
 import { ReminderService } from '../services/reminderService';
 import { Colors, Typography, Layout } from '../theme';
-import { getTodayLocal, formatDateToLocal } from '../utils/dateUtils';
+import { getTodayLocal, formatDateToLocal, formatTodayLong } from '../utils/dateUtils';
 import { SubNoteUtils } from '../utils/subNoteUtils';
+import { logger } from '../utils/logger';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -44,7 +45,7 @@ export const HomeScreen: React.FC = () => {
       setNotes(todaysParentNotes);
       setAllNotes(all); // Keep all notes for sub-note counting
     } catch (error) {
-      console.error('[HomeScreen] Error loading notes:', error);
+      logger.error('[HomeScreen] Error loading notes:', error);
     }
   };
 
@@ -83,32 +84,22 @@ export const HomeScreen: React.FC = () => {
             onPress={() => navigation.navigate('Tags')} 
             style={styles.headerButton}
           >
-            <Text style={{ fontSize: 20 }}>🏷️</Text>
+            <Ionicons name="pricetags-outline" size={22} color={Colors.accent.darkBlue} />
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Calendar')} 
             style={styles.headerButton}
           >
-            <Text style={{ fontSize: 20 }}>📅</Text>
+            <Ionicons name="calendar-outline" size={22} color={Colors.accent.darkBlue} />
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Search')} 
             style={styles.headerButton}
           >
-            <Text style={{ fontSize: 20 }}>🔍</Text>
+            <Ionicons name="search-outline" size={22} color={Colors.accent.darkBlue} />
           </TouchableOpacity>
         </View>
       ),
-    });
-  };
-
-  const formatDate = () => {
-    const today = new Date();
-    return today.toLocaleDateString('tr-TR', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
     });
   };
 
@@ -120,7 +111,7 @@ export const HomeScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Date Section */}
       <TouchableOpacity style={styles.dateSection} onPress={handleDatePress}>
-        <Text style={styles.dateText}>{formatDate()}</Text>
+        <Text style={styles.dateText}>{formatTodayLong()}</Text>
         {notes.length > 0 && (
           <Text style={styles.noteCount}>{notes.length} not</Text>
         )}

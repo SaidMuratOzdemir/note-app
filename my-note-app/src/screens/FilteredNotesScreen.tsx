@@ -17,6 +17,7 @@ import { SubNoteCard } from '../components/SubNoteCard';
 import { SubNoteBadge } from '../components/SubNoteBadge';
 import { EmptyState } from '../components/EmptyState';
 import { SubNoteUtils } from '../utils/subNoteUtils';
+import { logger } from '../utils/logger';
 
 type SortOption = 'date' | 'title' | 'relevance';
 type FilterOption = 'all' | 'parent' | 'sub';
@@ -84,7 +85,7 @@ const FilteredNotesScreen = ({ navigation, route }: any) => {
       
       setNotes(filteredNotes);
     } catch (error) {
-      console.error('Error loading filtered notes:', error);
+      logger.error('Error loading filtered notes:', error);
       Alert.alert('Hata', 'Notlar yüklenirken hata oluştu.');
     } finally {
       setLoading(false);
@@ -96,7 +97,7 @@ const FilteredNotesScreen = ({ navigation, route }: any) => {
     try {
       await loadNotes();
     } catch (error) {
-      console.error('Error refreshing notes:', error);
+      logger.error('Error refreshing notes:', error);
     } finally {
       setRefreshing(false);
     }

@@ -3,12 +3,13 @@ import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'r
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Note } from '../types/Note';
-import { getNotes, getSubNoteCount } from '../services/storage';
+import { getNotes } from '../services/storage';
 import { NoteCard } from '../components/NoteCard';
 import { SubNoteCard } from '../components/SubNoteCard';
 import { EmptyState } from '../components/EmptyState';
 import { Colors, Typography, Layout } from '../theme';
 import { SubNoteUtils } from '../utils/subNoteUtils';
+import { formatRelativeDate } from '../utils/dateUtils';
 import { RootStackParamList } from '../navigation/RootStack';
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
@@ -59,18 +60,7 @@ export const SearchScreen: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
-    if (dateString === today) return 'Bugün';
-    if (dateString === yesterday) return 'Dün';
-    
-    return date.toLocaleDateString('tr-TR', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
-    });
+    return formatRelativeDate(dateString);
   };
 
   const renderSection = ({ item }: { item: [string, Note[]] }) => {
@@ -207,3 +197,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
+
+export default React.memo(SearchScreen);

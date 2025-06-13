@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Note } from '../types/Note';
-import { getNotes, getSubNotes, createSubNote } from '../services/storage';
+import { getNotes, createSubNote } from '../services/storage';
 import { SubNoteUtils, HIERARCHY_CONFIG } from '../utils/subNoteUtils';
 import { logger } from '../utils/logger';
 import { SubNoteCard } from './SubNoteCard';
@@ -40,7 +40,7 @@ export const SubNoteDetailScreen: React.FC<SubNoteDetailScreenProps> = ({ note }
       }
       
       // Load sub-notes
-      const noteSubNotes = await getSubNotes(note.id);
+      const noteSubNotes = SubNoteUtils.getSubNotesFromArray(note.id, all);
       setSubNotes(noteSubNotes);
     } catch (error) {
       logger.error('Error loading data:', error);

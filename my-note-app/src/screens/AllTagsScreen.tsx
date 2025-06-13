@@ -17,6 +17,8 @@ import { Note } from '../types/Note';
 import { Colors, Typography, Layout } from '../theme';
 import { EmptyState } from '../components/EmptyState';
 import { RootStackParamList } from '../navigation/RootStack';
+import { logger } from '../utils/logger';
+import { formatLastUsed } from '../utils/dateUtils';
 
 interface AllTagsScreenProps {
   navigation: NavigationProp<RootStackParamList>;
@@ -66,7 +68,7 @@ const AllTagsScreen: React.FC<AllTagsScreenProps> = ({ navigation }) => {
       
       setAllTags(tagStats);
     } catch (error) {
-      console.error('Error loading all tags:', error);
+      logger.error('Error loading all tags:', error);
       Alert.alert('Hata', 'Etiketler yüklenirken hata oluştu.');
     } finally {
       setLoading(false);
@@ -119,7 +121,7 @@ const AllTagsScreen: React.FC<AllTagsScreenProps> = ({ navigation }) => {
       await tagService.updateCache();
       await loadAllTags();
     } catch (error) {
-      console.error('Error refreshing tags:', error);
+      logger.error('Error refreshing tags:', error);
       Alert.alert('Hata', 'Etiketler güncellenirken hata oluştu.');
     } finally {
       setRefreshing(false);
@@ -136,19 +138,6 @@ const AllTagsScreen: React.FC<AllTagsScreenProps> = ({ navigation }) => {
   const formatTagDisplay = (tag: TagData): string => {
     const noteText = tag.count === 1 ? 'not' : 'not';
     return `#${tag.name} (${tag.count} ${noteText})`;
-  };
-
-  const formatLastUsed = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Bugün';
-    if (diffDays === 1) return 'Dün';
-    if (diffDays < 7) return `${diffDays} gün önce`;
-    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} hafta önce`;
-    return `${Math.ceil(diffDays / 30)} ay önce`;
   };
 
   const getTagColor = (index: number): string => {

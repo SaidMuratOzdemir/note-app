@@ -166,7 +166,7 @@ export const HierarchyPerformanceMonitor: React.FC<HierarchyPerformanceMonitorPr
           <View style={styles.collapseRecommendation}>
             <Ionicons name="information-circle" size={16} color={Colors.accent.darkBlue} />
             <Text style={styles.collapseRecommendationText}>
-              Otomatik katlanma önerisi: {collapseRecommendations.recommendedDepthLimit}. seviye sonrası
+              Otomatik katlanma önerisi: {collapseRecommendations.recommendedCollapseDepth}. seviye sonrası
             </Text>
           </View>
         )}
@@ -224,17 +224,17 @@ export const HierarchyPerformanceMonitor: React.FC<HierarchyPerformanceMonitorPr
 
             {renderMetricCard(
               'Bellek Kullanımı',
-              formatMemory(memoryUsage.estimatedMemoryKB),
-              getPerformanceStatusIcon(memoryUsage.estimatedMemoryKB, { good: 500, warning: 1000 }),
-              getPerformanceStatusColor(memoryUsage.estimatedMemoryKB, { good: 500, warning: 1000 }),
+              formatMemory(memoryUsage.memoryUsage / 1024),
+              getPerformanceStatusIcon(memoryUsage.memoryUsage / 1024, { good: 500, warning: 1000 }),
+              getPerformanceStatusColor(memoryUsage.memoryUsage / 1024, { good: 500, warning: 1000 }),
               'Tahmini RAM kullanımı'
             )}
 
             {renderMetricCard(
               'Cache Boyutu',
-              `${memoryUsage.cacheEntries} kayıt`,
+              `${Math.floor(memoryUsage.memoryUsage / 1024)} KB`,
               'archive',
-              memoryUsage.cacheEntries > 500 ? Colors.warning : Colors.success,
+              memoryUsage.memoryUsage > 500 * 1024 ? Colors.warning : Colors.success,
               'Önbellekteki toplam kayıt'
             )}
           </View>

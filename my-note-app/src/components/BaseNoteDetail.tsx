@@ -11,6 +11,7 @@ import { ReminderList } from './ReminderList';
 import { Colors } from '../theme';
 import { RootStackParamList } from '../navigation/RootStack';
 import { logger } from '../utils/logger';
+import { formatDateTime } from '../utils/dateUtils';
 
 type BaseNoteDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Detail'>;
 
@@ -87,33 +88,6 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
     navigation.goBack();
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const noteDate = dateString.split('T')[0];
-    
-    let datePrefix = '';
-    if (noteDate === today) {
-      datePrefix = 'Bugün, ';
-    } else if (noteDate === yesterday) {
-      datePrefix = 'Dün, ';
-    } else {
-      datePrefix = date.toLocaleDateString('tr-TR', { 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
-      }) + ', ';
-    }
-    
-    const time = date.toLocaleTimeString('tr-TR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    return datePrefix + time;
-  };
-
   if (!note) {
     return (
       <View style={styles.loadingContainer}>
@@ -134,7 +108,7 @@ export const BaseNoteDetail: React.FC<BaseNoteDetailProps> = ({
         )}
         
         {/* Note Date */}
-        <Text style={styles.time}>{formatDate(note.createdAt)}</Text>
+        <Text style={styles.time}>{formatDateTime(note.createdAt)}</Text>
         
         {/* Note Images */}
         {note.imageUris && note.imageUris.length > 0 && (
@@ -290,3 +264,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 });
+
+export default React.memo(BaseNoteDetail);

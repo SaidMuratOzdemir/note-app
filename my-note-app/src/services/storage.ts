@@ -7,6 +7,10 @@ import { v4 as uuid } from 'uuid';
 
 const NOTES_KEY = 'notes';
 
+// Cache for storage validation to prevent repeated logging
+let lastValidationLog = 0;
+let invalidNoteCount = 0;
+
 export async function getNotes(): Promise<Note[]> {
   try {
     const json = await AsyncStorage.getItem(NOTES_KEY);
@@ -20,14 +24,47 @@ export async function getNotes(): Promise<Note[]> {
       return [];
     }
     
-    // Validate each note has required fields
-    const validNotes = parsed.filter(note => {
-      if (!note || typeof note.id !== 'string' || typeof note.title !== 'string') {
-        logger.warn('[Storage] Skipping invalid note:', note);
-        return false;
+    // Enhanced validation with better logging and auto-cleanup
+    const validNotes: Note[] = [];
+    const invalidNotes: any[] = [];
+    
+    parsed.forEach(note => {
+      // ✅ Fixed validation: title is optional, only check required fields
+      if (!note || typeof note.id !== 'string' || typeof note.content !== 'string') {
+        invalidNotes.push(note);
+        return;
       }
-      return true;
+      
+      // Ensure required Note properties and migrate old data format
+      const validatedNote: Note = {
+        id: note.id,
+        ...(note.title && { title: note.title }), // Only add title if exists
+        content: note.content || '',
+        createdAt: note.createdAt || new Date().toISOString(),
+        tags: Array.isArray(note.tags) ? note.tags : [],
+        imageUris: Array.isArray(note.imageUris) ? note.imageUris : (note.imageUri ? [note.imageUri] : []),
+        ...(note.parentId && { parentId: note.parentId }),
+        ...(note.lastAccessed && { lastAccessed: note.lastAccessed })
+      };
+      
+      validNotes.push(validatedNote);
     });
+    
+    // Smart logging - only log once per minute and show summary
+    const now = Date.now();
+    if (invalidNotes.length > 0) {
+      if (now - lastValidationLog > 60000) { // 1 minute throttle
+        const uniqueInvalidTypes = [...new Set(invalidNotes.map(note => 
+          !note ? 'null' : 
+          !note.id ? 'missing-id' : 
+          !note.title ? 'missing-title' : 'unknown'
+        ))];
+        
+        logger.warn(`[Storage] 🧹 Found ${invalidNotes.length} invalid notes (types: ${uniqueInvalidTypes.join(', ')}). Valid notes: ${validNotes.length}`);
+        lastValidationLog = now;
+        invalidNoteCount = invalidNotes.length;
+      }
+    }
     
     return validNotes;
   } catch (error) {
@@ -261,5 +298,53 @@ export async function createSubNote(
       timestamp: new Date().toISOString()
     });
     throw error;
+  }
+}
+
+// Utility function for one-time storage cleanup
+export async function cleanupInvalidNotes(): Promise<{cleaned: number, remaining: number}> {
+  try {
+    logger.dev('[Storage] 🧹 Starting comprehensive storage cleanup...');
+    
+    const json = await AsyncStorage.getItem(NOTES_KEY);
+    if (!json) return {cleaned: 0, remaining: 0};
+    
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return {cleaned: 0, remaining: 0};
+    
+    const validNotes: Note[] = [];
+    let cleanedCount = 0;
+    
+    parsed.forEach(note => {
+      // ✅ Fixed validation: title is optional, only check required fields  
+      if (!note || typeof note.id !== 'string' || typeof note.content !== 'string') {
+        cleanedCount++;
+        return;
+      }
+      
+      // Normalize and validate note structure
+      const cleanNote: Note = {
+        id: note.id,
+        ...(note.title && { title: note.title }), // Only add title if exists
+        content: note.content || '',
+        createdAt: note.createdAt || new Date().toISOString(),
+        tags: Array.isArray(note.tags) ? note.tags : [],
+        imageUris: Array.isArray(note.imageUris) ? note.imageUris : (note.imageUri ? [note.imageUri] : []),
+        ...(note.parentId && { parentId: note.parentId }),
+        ...(note.lastAccessed && { lastAccessed: note.lastAccessed })
+      };
+      
+      validNotes.push(cleanNote);
+    });
+    
+    if (cleanedCount > 0) {
+      await saveNotes(validNotes);
+      logger.dev(`[Storage] ✅ Cleanup complete: removed ${cleanedCount} invalid notes, kept ${validNotes.length} valid notes`);
+    }
+    
+    return {cleaned: cleanedCount, remaining: validNotes.length};
+  } catch (error) {
+    logger.error('[Storage] Cleanup failed:', error);
+    return {cleaned: 0, remaining: 0};
   }
 }

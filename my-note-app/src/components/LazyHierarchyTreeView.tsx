@@ -310,7 +310,7 @@ export const LazyHierarchyTreeView: React.FC<LazyHierarchyTreeViewProps> = ({
       <View style={styles.recommendationBanner}>
         <Ionicons name="information-circle" size={16} color={Colors.accent.darkBlue} />
         <Text style={styles.recommendationText}>
-          Öneri: {collapseRecommendations.recommendedDepthLimit}. seviyeden sonraki notlar otomatik kapatılır
+          Öneri: {collapseRecommendations.recommendedCollapseDepth}. seviyeden sonraki notlar otomatik kapatılır
         </Text>
       </View>
     );
@@ -318,7 +318,7 @@ export const LazyHierarchyTreeView: React.FC<LazyHierarchyTreeViewProps> = ({
 
   // Effect to handle cache invalidation when notes change
   useEffect(() => {
-    performance.invalidateCache(rootNote.id);
+    performance.invalidateCache(rootNote.id, allNotes);
   }, [allNotes.length, performance, rootNote.id]);
 
   return (

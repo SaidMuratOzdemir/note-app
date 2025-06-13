@@ -13,6 +13,8 @@ import { getNotes } from '../services/storage';
 import { Note } from '../types/Note';
 import { Colors, Typography, Layout } from '../theme';
 import { EmptyState } from '../components/EmptyState';
+import { logger } from '../utils/logger';
+import { formatLastUsed } from '../utils/dateUtils';
 
 interface TagData {
   name: string;
@@ -39,7 +41,7 @@ const TagsScreen = ({ navigation }: any) => {
       
       setTopTags(tagStats.slice(0, 10)); // Top 10 tags
     } catch (error) {
-      console.error('Error loading tags:', error);
+      logger.error('Error loading tags:', error);
       Alert.alert('Hata', 'Etiketler yüklenirken hata oluştu.');
     } finally {
       setLoading(false);
@@ -90,7 +92,7 @@ const TagsScreen = ({ navigation }: any) => {
     try {
       await loadTags();
     } catch (error) {
-      console.error('Error refreshing tags:', error);
+      logger.error('Error refreshing tags:', error);
     } finally {
       setRefreshing(false);
     }
@@ -106,19 +108,6 @@ const TagsScreen = ({ navigation }: any) => {
   const formatTagDisplay = (tag: TagData): string => {
     const noteText = tag.count === 1 ? 'not' : 'not';
     return `#${tag.name} (${tag.count} ${noteText})`;
-  };
-
-  const formatLastUsed = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Bugün';
-    if (diffDays === 1) return 'Dün';
-    if (diffDays < 7) return `${diffDays} gün önce`;
-    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} hafta önce`;
-    return `${Math.ceil(diffDays / 30)} ay önce`;
   };
 
   if (loading) {

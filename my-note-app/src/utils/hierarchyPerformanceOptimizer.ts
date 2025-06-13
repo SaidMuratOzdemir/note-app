@@ -149,7 +149,7 @@ export class HierarchyPerformanceOptimizer {
     }
 
     const startTime = performance.now();
-    const children = SubNoteUtils.getDirectChildren(noteId, allNotes);
+    const children = allNotes.filter(note => note.parentId === noteId);
     const calculationTime = performance.now() - startTime;
 
     this.cache.children.set(cacheKey, { data: children, timestamp: Date.now() });
@@ -172,7 +172,9 @@ export class HierarchyPerformanceOptimizer {
     }
 
     const startTime = performance.now();
-    const depth = SubNoteUtils.getNoteDepth(noteId, allNotes);
+    const note = allNotes.find(n => n.id === noteId);
+    if (!note) return 0;
+    const depth = SubNoteUtils.getNoteDepth(note, allNotes);
     const calculationTime = performance.now() - startTime;
 
     this.cache.depths.set(cacheKey, { data: depth, timestamp: Date.now() });
@@ -234,29 +236,29 @@ export class HierarchyPerformanceOptimizer {
   } {
     const stats = this.getHierarchyStats(noteId, allNotes);
     const recommendations = {
-      recommendedDepthLimit: HIERARCHY_CONFIG.maxDepthLimit,
+      recommendedDepthLimit: HIERARCHY_CONFIG.MAX_DEPTH as number,
       shouldUseLazyLoading: false,
       optimizationSuggestions: [] as string[],
     };
 
     // Adjust depth limit based on total descendants
-    if (stats.totalDescendants > 100) {
-      recommendations.recommendedDepthLimit = Math.max(3, HIERARCHY_CONFIG.maxDepthLimit - 2);
+    if (stats.descendantCount > 100) {
+      recommendations.recommendedDepthLimit = Math.max(3, (HIERARCHY_CONFIG.MAX_DEPTH as number) - 2);
       recommendations.optimizationSuggestions.push('Consider limiting depth due to large hierarchy');
     }
 
     // Recommend lazy loading for large hierarchies
-    if (stats.totalDescendants > 50) {
+    if (stats.descendantCount > 50) {
       recommendations.shouldUseLazyLoading = true;
       recommendations.optimizationSuggestions.push('Use lazy loading for better performance');
     }
 
     // Warn about performance bottlenecks
-    if (stats.maxDepth > HIERARCHY_CONFIG.warningDepthThreshold) {
+    if (stats.depth > HIERARCHY_CONFIG.WARNING_DEPTH) {
       recommendations.optimizationSuggestions.push('Hierarchy is very deep, consider restructuring');
     }
 
-    if (stats.totalDescendants > HIERARCHY_CONFIG.largeHierarchyThreshold) {
+    if (stats.descendantCount > HIERARCHY_CONFIG.MAX_CHILDREN_PER_NODE) {
       recommendations.optimizationSuggestions.push('Large hierarchy detected, enable performance monitoring');
     }
 
@@ -301,29 +303,69 @@ export class HierarchyPerformanceOptimizer {
    */
   private cleanupExpiredCache(): void {
     const now = Date.now();
-    const caches = [this.cache.stats, this.cache.children, this.cache.depths, this.cache.descendants];
-    
     let cleanedEntries = 0;
     
-    caches.forEach(cache => {
-      for (const [key, value] of cache.entries()) {
-        if (!this.isCacheValid(value.timestamp)) {
-          cache.delete(key);
-          cleanedEntries++;
-        }
+    // Clean expired entries
+    for (const [key, value] of this.cache.stats.entries()) {
+      if (!this.isCacheValid(value.timestamp)) {
+        this.cache.stats.delete(key);
+        cleanedEntries++;
       }
-    });
+    }
+    
+    for (const [key, value] of this.cache.children.entries()) {
+      if (!this.isCacheValid(value.timestamp)) {
+        this.cache.children.delete(key);
+        cleanedEntries++;
+      }
+    }
+    
+    for (const [key, value] of this.cache.depths.entries()) {
+      if (!this.isCacheValid(value.timestamp)) {
+        this.cache.depths.delete(key);
+        cleanedEntries++;
+      }
+    }
+    
+    for (const [key, value] of this.cache.descendants.entries()) {
+      if (!this.isCacheValid(value.timestamp)) {
+        this.cache.descendants.delete(key);
+        cleanedEntries++;
+      }
+    }
 
     // Limit cache size
-    caches.forEach(cache => {
-      if (cache.size > HierarchyPerformanceOptimizer.MAX_CACHE_SIZE) {
-        const entries = Array.from(cache.entries());
-        entries.sort((a, b) => a[1].timestamp - b[1].timestamp); // Sort by timestamp
-        const toDelete = entries.slice(0, cache.size - HierarchyPerformanceOptimizer.MAX_CACHE_SIZE);
-        toDelete.forEach(([key]) => cache.delete(key));
-        cleanedEntries += toDelete.length;
-      }
-    });
+    if (this.cache.stats.size > HierarchyPerformanceOptimizer.MAX_CACHE_SIZE) {
+      const entries = Array.from(this.cache.stats.entries());
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = entries.slice(0, this.cache.stats.size - HierarchyPerformanceOptimizer.MAX_CACHE_SIZE);
+      toDelete.forEach(([key]) => this.cache.stats.delete(key));
+      cleanedEntries += toDelete.length;
+    }
+    
+    if (this.cache.children.size > HierarchyPerformanceOptimizer.MAX_CACHE_SIZE) {
+      const entries = Array.from(this.cache.children.entries());
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = entries.slice(0, this.cache.children.size - HierarchyPerformanceOptimizer.MAX_CACHE_SIZE);
+      toDelete.forEach(([key]) => this.cache.children.delete(key));
+      cleanedEntries += toDelete.length;
+    }
+    
+    if (this.cache.depths.size > HierarchyPerformanceOptimizer.MAX_CACHE_SIZE) {
+      const entries = Array.from(this.cache.depths.entries());
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = entries.slice(0, this.cache.depths.size - HierarchyPerformanceOptimizer.MAX_CACHE_SIZE);
+      toDelete.forEach(([key]) => this.cache.depths.delete(key));
+      cleanedEntries += toDelete.length;
+    }
+    
+    if (this.cache.descendants.size > HierarchyPerformanceOptimizer.MAX_CACHE_SIZE) {
+      const entries = Array.from(this.cache.descendants.entries());
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = entries.slice(0, this.cache.descendants.size - HierarchyPerformanceOptimizer.MAX_CACHE_SIZE);
+      toDelete.forEach(([key]) => this.cache.descendants.delete(key));
+      cleanedEntries += toDelete.length;
+    }
 
     if (cleanedEntries > 0) {
       logger.dev(`Cleaned up ${cleanedEntries} expired cache entries`);
@@ -419,5 +461,37 @@ export const useHierarchyPerformance = () => {
     getConfig: () => optimizer.getConfig(),
     updateConfig: (config: Partial<LazyLoadingConfig>) => optimizer.updateConfig(config),
     clearCache: () => optimizer.clearCache(),
+    // Eksik metodları ekle
+    getCachedStats: (noteId: string, allNotes: Note[]) => 
+      optimizer.getHierarchyStats(noteId, allNotes),
+    getCachedChildren: (noteId: string, allNotes: Note[], page: number = 0, pageSize: number = 50) => 
+      optimizer.getLazyChildren(noteId, allNotes, page),
+    shouldUseLazyLoading: (noteId: string, allNotes: Note[]) => {
+      const stats = optimizer.getHierarchyStats(noteId, allNotes);
+      return stats.descendantCount > 50 || stats.depth > 3;
+    },
+    getCollapseRecommendations: (noteId: string, allNotes: Note[]) => {
+      const stats = optimizer.getHierarchyStats(noteId, allNotes);
+      return {
+        shouldAutoCollapse: stats.depth > HIERARCHY_CONFIG.WARNING_DEPTH,
+        recommendedCollapseDepth: Math.max(2, HIERARCHY_CONFIG.WARNING_DEPTH - 1),
+        reason: stats.descendantCount > 100 ? 'Large hierarchy' : 'Deep hierarchy'
+      };
+    },
+    preloadNextPage: (noteId: string, allNotes: Note[], page: number) => {
+      // Preload next page in background
+      setTimeout(() => {
+        optimizer.getLazyChildren(noteId, allNotes, page + 1);
+      }, 100);
+    },
+    getMemoryUsage: () => {
+      const metrics = optimizer.getMetrics();
+      return {
+        memoryUsage: metrics.memoryUsage,
+        cacheHitRate: metrics.cacheHitRate,
+        recommendations: metrics.memoryUsage > 1024 * 1024 ? // 1MB
+          ['Consider clearing cache', 'Reduce cache timeout'] : []
+      };
+    }
   };
 };
